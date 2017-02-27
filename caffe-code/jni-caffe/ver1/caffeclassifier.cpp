@@ -17,8 +17,8 @@ Classifier::Classifier(int gpu_device, string proto_path, string model_path, str
     std::cout << "status : start initiating caffe classifier model " << std::endl;
 
     Caffe::set_mode(Caffe::GPU); //如果要使用CPU的话，请在这里 //	Caffe::set_mode(Caffe::CPU);
-    gpu_device_ = gpu_device;
-    Caffe::SetDevice(gpu_device_);
+    gpu_device_ = gpu_device;    //将全局device变量设为指定的device，后续求解的时候需要这个全局变量来指定device
+    Caffe::SetDevice(gpu_device_); //设置proto以及模型load的gpu device（多gpu机器上需要指定gpu的device）
 
     const char *proto_char = proto_path.c_str();
     const char *model_char = model_path.c_str();
