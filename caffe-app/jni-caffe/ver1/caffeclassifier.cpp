@@ -105,12 +105,10 @@ std::vector<float> Classifier::Predict(const cv::Mat &img) {
     /* Copy the output layer to a std::vector */
     Blob<float> *output_layer = net_->output_blobs()[0];
     const float *begin = output_layer->cpu_data();
-    //  const float* end = begin + output_layer->channels();
-    const float *end =
-            begin + label_size_; //训练数据时采用的是默认的1000类，所以output_layer->channels()是1000，这样是不对的，为了简单期间，色情图像只是分为2类，所以使用这个2，以后再改
-
+    const float *end = begin + label_size_;
+    //训练数据时采用的是默认的1000类，所以用原始的const float* end = begin + output_layer->channels()是不对的，
+    // 因为output_layer->channels()是1000，因为输入的类别数目并不等于1000，是label_size_
     input_channels.clear();
-    //input_layer = NULL;
     return std::vector<float>(begin, end);
 }
 
@@ -124,7 +122,7 @@ std::vector<float> Classifier::Predict(const cv::Mat &img) {
 并不需要依靠cudaMemcpy2D 。最后预处理
 操作将直接写入不同通道的输入层。
 */
-void Classifier::WrapInputLayer(std::vector <cv::Mat> *input_channels) {    //have been clear
+void Classifier::WrapInputLayer(std::vector <cv::Mat> *input_channels) {
 
     Blob<float> *input_layer = net_->input_blobs()[0];
 
