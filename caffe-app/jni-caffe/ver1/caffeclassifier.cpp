@@ -14,37 +14,31 @@
 Classifier::Classifier(int gpu_device, string proto_path, string model_path, string label_path, int crop_size, int r,
                        int g, int b) {
 
-    std::cout << "status : start initiating caffe classifier model " << std::endl;
+    std::cout << "status check: start initiating caffe classifier model " << std::endl; //系统开始运行时候打印一行表示进入到了初始化阶段（个人习惯而已，其实这里用cout不好）
 
-    Caffe::set_mode(Caffe::GPU); //如果要使用CPU的话，请在这里 //	Caffe::set_mode(Caffe::CPU);
+    Caffe::set_mode(Caffe::GPU); //函数在common.cpp中，用来设置是GPU求解还是CPU求解，如果要使用CPU的话，请在这里使用Caffe::set_mode(Caffe::CPU);
     gpu_device_ = gpu_device;    //将全局device变量设为指定的device，后续求解的时候需要这个全局变量来指定device
-    Caffe::SetDevice(gpu_device_); //设置proto以及模型load的gpu device（多gpu机器上需要指定gpu的device）
+    Caffe::SetDevice(gpu_device_); //函数在common.cpp中，设置proto以及模型load的gpu device（多gpu机器上需要指定gpu的device）
 
-    const char *proto_char = proto_path.c_str();
-    const char *model_char = model_path.c_str();
-    const char *label_char = label_path.c_str();
-
-    //load 模型, prototxt，并初始化网络
-    net_ = new Net<float>(proto_char, TEST);    //函数在net.cpp里
+    net_ = new Net<float>(proto_path, TEST);    //函数在net.cpp里，用以load本地储存的proto.txt文件，然后初始化caffe网络
     //从训练好的模型中，拷贝参数
-    net_->CopyTrainedLayersFrom(model_char); //函数在net.cpp中
-    //以上两个都是从upgrade_proto.cpp里的函数 UpgradeNetAsNeeded 中读取本地文件，一个是读取file一个是读取二值file，将其转化为
-    //NetParameter 之后，再load到模型中，而NetParameter是通过Google-protocol-buffers进行序列化的。
-    //so，读懂了NetParameter，就是明白了如何读取每一层的参数，以及初始化Net的
+    net_->CopyTrainedLayersFrom(model_path); //函数在net.cpp中，从训练好的模型文件中，讲训练好的参数等文件拷贝到模型之中
+    //注：值得注意的是，以上两个函数， 即 new Net<fload>(proto_path, TEST) 和 CopyTrainedLayersFrom(model_path)都是从从upgrade_proto.cpp里
+    // 使用函数UpgradeNetAsNeeded 中读取本地文件，一个是读取file一个是读取二值file，将其转化为NetParameter之后，再load到模型中，
+    // 而NetParameter是通过Google-protocol-buffers进行序列化的。so，读懂了NetParameter，就是明白了如何读取每一层的参数，以及初始化Net的
 
-    //vector<Blob<Dtype>*> net_input_blobs_; 获取的是网络初始化后的Blob数据，其中0是输入层的blob数据
-    Blob<float> *input_layer = net_->input_blobs()[0];     //网络层模板 Blob
-    num_channels_ = input_layer->channels();    //通道数
+    Blob<float> *input_layer = net_->input_blobs()[0];     //修改输入层模板，他是通过调用的是net.cpp中相应的函数获取vector<Blob<Dtype>*> net_input_blobs_;它是网络初始化后的Blob数据，其中0是输入层的blob数据
+    num_channels_ = input_layer->channels();    //获取blob中输入的图像的通道数
     input_geometry_ = cv::Size(input_layer->width(), input_layer->height());
-    input_layer->Reshape(1, num_channels_, input_geometry_.height,
-                         input_geometry_.width);
-    /* Forward dimension change to all layers. */
-    net_->Reshape();
+    input_layer->Reshape(1, num_channels_, input_geometry_.height, input_geometry_.width);  //第一个参数是batch size的数量
+    net_->Reshape();    /* Forward dimension change to all layers. */
+    //以上5行函数是将net中的输入层，reshape下，事实上这件事情做的是强制的将input层的batch size resize到了1，然后再每一层都reshape下
+    //通常情况下，input的的batch size 是由prototxt里控制的，这里因为是设置为单线程处理的，所以输入的batch size直接是设为1了，如果是以外层控制的方式输入的，则这里并不需要上面5行函数
+    //当然，如果输入的batch size并不等于预设的情况下，也可以再函数中控制batch size的数量
 
-    /* 直接设定均值图像的大小与rgb均值 */
-    SetMean(crop_size, r, g, b);
-    /* Load labels. 加载分类标签文件*/
-    LoadTag(label_char);
+    SetMean(crop_size, r, g, b); // 直接设定均值图像的大小与rgb均值，在googlenet之后，均值都是直接设定了直接相减的
+
+    LoadTag(label_path);     //加载分类标签，原始的输出类别是数字，加个tag的话，看的清楚些
 
     std::cout << "status check: initiating caffe classifier model success " << std::endl;
 }
@@ -158,9 +152,10 @@ void Classifier::SetMean(int cropSize, float r, float g, float b) {
     delete[] meanData;
 }
 
-void Classifier::LoadTag(const char *labelled_char) {
+void Classifier::LoadTag(const string& label_path) {
     //	char *labelled_chars   = "/home/nisp/image-classify/c-working/models-porn/caffe_15_09_29_labeltag";
-    std::ifstream labels(labelled_char);
+    const char *label_char = label_path.c_str();
+    std::ifstream labels(label_char);
     string line;
     lableSize = 0;
     while (std::getline(labels, line)) {

@@ -68,7 +68,7 @@ private:
 
     void SetMean(int cropSize, float r, float g, float b); //set mean rgb like googlenet use
 
-    void LoadTag(const char *labelled_char); //load labelled char file
+    void LoadTag(const string& label_path); //load labelled char file
 
     std::vector<float> Predict(const cv::Mat &img);                    //预测
 
