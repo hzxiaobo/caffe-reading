@@ -31,18 +31,26 @@ class Classifier {
 public:
 
     /**
-      * 类的初始化构造函数，各个参数的意义分别是：
-      * int: int gpu_device， 多显卡机器上需要指定显卡id / string proto_path: 深度学习模型的 xx.prototxt的本地路径 / string model_path:训练好的模型参数的本地路径
-      * string label_path: 输出的label的本地路径，实际上这个输出的label原本不需要放在c++端，放在调用方的那一端即可
-      * int crop_size，实际上是输入图像的大小（在调用方resize之后传入这里）
-      * int r, int g, int b, 图像的平均值，在GoogLeNet之后基本上都是直接减去平均值的，而在早期的AlexNet的时候，是向模型中传入平均值的一张图像的
-      *
-      * 函数作用：
-      * 首先load prototxt中的深度学习的网络模型，随后load 训练好的参数模型，然后再将网络形状，均值等均设置好，相当于初始化阶段
-    **/
+     * 类的初始化构造函数，首先load prototxt中的深度学习的网络模型，随后load 训练好的参数模型，然后再将网络形状，均值等均设置好，相当于初始化阶段
+     * @param gpu_device 多显卡机器上需要指定显卡id
+     * @param proto_path 深度学习模型xx.prototxt的本地路径
+     * @param model_path 训练好的模型参数的本地路径
+     * @param label_path 输出的label的本地路径，实际上这个输出的label原本不需要放在c++端，放在调用方的那一端即可
+     * @param crop_size 实际上是输入图像的大小（在调用方resize之后传入这里）
+     * @param r 图像的平均值，r通道
+     * @param g 图像的平均值，g通道
+     * @param b 图像的平均值，b通道
+     * @return 类的初始化构造函数，所以没有return的值
+     */
     Classifier(int gpu_device, string proto_path, string model_path, string label_path, int crop_size, int r,
                int g, int b);
 
+    /**
+     * Return the top N predictions. 分类并返回最大的前 N 个预测，是调用Predict函数完成分类，然后再在本函数里完成筛选前N个概率最大的类别的工作
+     * @param img 输入的Mat图像
+     * @param 前N个预测，默认输入的数字是1
+     * @return 返回预测结果，以vector的形式存放，（Prediction的定义详见本.h文件里的Prediction
+     */
     std::vector <Prediction> Classify(const cv::Mat &img, int N = 1); //分类，默认返回前5个预测值[(标签，置信度),... ] 数组
 
     int isTarget(const cv::Mat &img);
@@ -64,16 +72,37 @@ public:
     void setResizeSize(int size);
 
 private:
-    void SetMean(string mean_char); //load mean file
 
-    void SetMean(int cropSize, float r, float g, float b); //set mean rgb like googlenet use
+    /**
+     * 值得注意的是，这个函数里的设置实在是太为繁琐了，讲道理应该是有优化的空间的，可以直接省去绝大部分的代码
+     * 函数直接设定均值图像的r，g，b通道的均值, GoogLeNet及其之后，均值都是直接设定了直接相减的
+     * @param crop_size 图像剪切的size
+     * @param r r通道的均值
+     * @param g g通道的均值
+     * @param b b通道的均值
+     */
+    void SetMean(int crop_size, float r, float g, float b);
 
-    void LoadTag(const string& label_path); //load labelled char file
+    /**
+     * 加载分类标签，原始的输出类别是数字，加个tag的话，类别输出明显些,tag的存放格式很简单，一行就是一个tag
+     * @param label_path 存放tag标签的路径，
+     */
+    void LoadTag(const string& label_path);
 
-    std::vector<float> Predict(const cv::Mat &img);                    //预测
+    /**
+     * 预测一张图像的分类，以vector<float>的格式输出，
+     * @param img 待预测的图像
+     * @return 返回所有类别的概率
+     */
+    std::vector<float> Predict(const cv::Mat &img);
 
     void WrapInputLayer(std::vector <cv::Mat> *input_channels);
 
+    /**
+     * 数据预处理，将输入的图像经过 通道分离，图像resize，以及减去均值后，将其压入相应的input_channels中
+     * @param img 输入的图像
+     * @param input_channels 相应的input_channels
+     */
     void Preprocess(const cv::Mat &img, std::vector <cv::Mat> *input_channels);
 
     string hardFilter(std::vector <Prediction> predictions, string normalTag, float ratio);
@@ -81,12 +110,12 @@ private:
     float *ExtractFeature(const cv::Mat &img, string fc);
 
 private:
-    Net<float> *net_;                        //caffe分类网络对象
+    Net<float> *net_;                           //caffe分类网络对象
     cv::Size input_geometry_;                   //输入图像几何尺寸
-    int num_channels_;                            //网络通道数
-    cv::Mat mean_;                              //均值图像
+    int num_channels_;                          //网络通道数
+    cv::Mat mean_;                              //均值图像，
     std::vector <string> labels_;                //目标标签数组
     int resizeSize;
-    int lableSize;                                //类别的数目
+    int label_size_;                                //类别的数目，用在截断类别输出时使用，如果是使用别人的模型直接finetuning的时候，类别是原始的类别，所以需要截断
     int gpu_device_;                                //设备id
 };

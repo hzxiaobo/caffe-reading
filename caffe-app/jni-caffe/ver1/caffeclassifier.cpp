@@ -1,16 +1,6 @@
 #include "caffeclassifier.h"
 
 
-/**
- * 类的初始化构造函数，各个参数的意义分别是：
- * int: gpu device id， 多显卡机器上需要指定显卡id / string model_file: 深度学习模型的 xx.prototxt的本地路径 / string trained_file:训练好的模型参数的本地路径
- * string labelled_file: 输出的label的本地路径，实际上这个输出的label原本不需要放在c++端，放在调用方的那一端即可
- * int cropSize，实际上是输入图像的大小（在调用方resize之后传入这里）
- * int r, int g, int b, 图像的平均值，在GoogLeNet之后基本上都是直接减去平均值的，而在早期的AlexNet的时候，是向模型中传入平均值的一张图像的
- *
- * 函数作用：
- * 首先load prototxt中的深度学习的网络模型，随后load 训练好的参数模型，然后再将网络形状，均值等均设置好，相当于初始化阶段
- **/
 Classifier::Classifier(int gpu_device, string proto_path, string model_path, string label_path, int crop_size, int r,
                        int g, int b) {
 
@@ -29,117 +19,58 @@ Classifier::Classifier(int gpu_device, string proto_path, string model_path, str
 
     Blob<float> *input_layer = net_->input_blobs()[0];     //修改输入层模板，他是通过调用的是net.cpp中相应的函数获取vector<Blob<Dtype>*> net_input_blobs_;它是网络初始化后的Blob数据，其中0是输入层的blob数据
     num_channels_ = input_layer->channels();    //获取blob中输入的图像的通道数
-    input_geometry_ = cv::Size(input_layer->width(), input_layer->height());
+    input_geometry_ = cv::Size(input_layer->width(), input_layer->height()); //设置输入图像的geometry尺寸
     input_layer->Reshape(1, num_channels_, input_geometry_.height, input_geometry_.width);  //第一个参数是batch size的数量
     net_->Reshape();    /* Forward dimension change to all layers. */
     //以上5行函数是将net中的输入层，reshape下，事实上这件事情做的是强制的将input层的batch size resize到了1，然后再每一层都reshape下
     //通常情况下，input的的batch size 是由prototxt里控制的，这里因为是设置为单线程处理的，所以输入的batch size直接是设为1了，如果是以外层控制的方式输入的，则这里并不需要上面5行函数
     //当然，如果输入的batch size并不等于预设的情况下，也可以再函数中控制batch size的数量
 
-    SetMean(crop_size, r, g, b); // 直接设定均值图像的大小与rgb均值，在googlenet之后，均值都是直接设定了直接相减的
+    SetMean(crop_size, r, g, b); // 直接设定均值图像的大小与rgb均值，GoogLeNet及其之后，均值都是直接设定了直接相减的
 
-    LoadTag(label_path);     //加载分类标签，原始的输出类别是数字，加个tag的话，看的清楚些
+    LoadTag(label_path);     //加载分类标签，原始的输出类别是数字，加个tag的话，类别输出明显些
 
     std::cout << "status check: initiating caffe classifier model success " << std::endl;
 }
 
-/**
-* 比较器
-*/
-static bool PairCompare(const std::pair<float, int> &lhs,
-                        const std::pair<float, int> &rhs) {
-    return lhs.first > rhs.first;
-}
 
-/* Return the indices of the top N values of vector v. */
-/* 返回数组v[] 最大值的前 N 个序号数组 */
-static std::vector<int> Argmax(const std::vector<float> &v, int N) {
-    std::vector <std::pair<float, int>> pairs;
-    for (size_t i = 0; i < v.size(); ++i)
-        pairs.push_back(std::make_pair(v[i], i));
-    std::partial_sort(pairs.begin(), pairs.begin() + N, pairs.end(),
-                      PairCompare);
-    std::vector<int> result;
-    for (int i = 0; i < N; ++i)
-        result.push_back(pairs[i].second);
-
-    pairs.clear();
-    return result;
-}
-
-/* Return the top N predictions. 分类并返回最大的前 N 个预测 */
-std::vector <Prediction> Classifier::Classify(const cv::Mat &img, int N) { //have been clean
-    std::vector<float> output = Predict(img);
-    std::cout << "c++ op: target probability of ";
-    for (int i = 0; i < labels_.size(); i++) {
-        std::cout << i << " " << output[i] << " , ";
-    }
-    std::cout << std::endl;
-    std::vector<int> maxN = Argmax(output, N);
+std::vector <Prediction> Classifier::Classify(const cv::Mat &img, int N) {
+    std::vector<float> output = Predict(img);   //使用预测函数进行预测
+    std::vector<int> maxN = Argmax(output, N);  //将输出的结果排序，取前N个最大的值
     std::vector <Prediction> predictions;
     for (int i = 0; i < N; ++i) {
         int idx = maxN[i];
         predictions.push_back(std::make_pair(labels_[idx], output[idx])); //组成 [(标签，置信度),...]预测值数组
     }
-
     output.clear();
     maxN.clear();
     return predictions;
 }
 
-/* Load the mean file in binaryproto format. */
-void Classifier::SetMean(string mean_char) { //have been clean
-    BlobProto blob_proto;
-    ReadProtoFromBinaryFileOrDie(mean_char, &blob_proto);
-    /* Convert from BlobProto to Blob<float> */
-    Blob<float> mean_blob;
-    mean_blob.FromProto(blob_proto);
-    // CHECK_EQ(mean_blob.channels(), num_channels_)
-    //   << "Number of channels of mean file doesn't match input layer.";
-    /* The format of the mean file is planar 32-bit float BGR or grayscale. */
-    std::vector <cv::Mat> channels;
-    float *data = mean_blob.mutable_cpu_data();
-    for (int i = 0; i < num_channels_; ++i) {
-        /* Extract an individual channel. */
-        cv::Mat channel(mean_blob.height(), mean_blob.width(), CV_32FC1, data);
-        channels.push_back(channel);
-        data += mean_blob.height() * mean_blob.width();
-    }
-    /* Merge the separate channels into a single image. */
-    cv::Mat mean;
-    cv::merge(channels, mean);
-    /* Compute the global mean pixel value and create a mean image
-    * filled with this value. */
-    cv::Scalar channel_mean = cv::mean(mean);
-    mean_ = cv::Mat(input_geometry_, mean.type(), channel_mean);
-    channels.clear();
-}
 
-/**
-* 直接设置文件的大小以及均值
-*/
-void Classifier::SetMean(int cropSize, float r, float g, float b) {
+void Classifier::SetMean(int crop_size, float r, float g, float b) {
     std::vector <cv::Mat> channels;
     float *meanData;
-    meanData = new float[cropSize * cropSize * 3];
-    for (int i = 0; i < cropSize * cropSize; i++) {
+    int crop_size_squ = crop_size*crop_size;
+    meanData = new float[crop_size_squ * 3];
+    for (int i = 0; i < crop_size_squ; i++) {
         meanData[i] = r;
     }
-    int startPo = cropSize * cropSize;
-    for (int i = 0; i < cropSize * cropSize; i++) {
+    int startPo = crop_size_squ;
+    for (int i = 0; i < crop_size_squ; i++) {
         meanData[startPo + i] = g;
     }
-    startPo += cropSize * cropSize;
-    for (int i = 0; i < cropSize * cropSize; i++) {
+    startPo += crop_size_squ;
+    for (int i = 0; i < crop_size_squ; i++) {
         meanData[startPo + i] = b;
     }
 
     float *data = meanData;
 
     for (int i = 0; i < num_channels_; ++i) {
-        cv::Mat channel(cropSize, cropSize, CV_32FC1, data);
+        cv::Mat channel(crop_size, crop_size, CV_32FC1, data);
         channels.push_back(channel);
-        data += cropSize * cropSize;
+        data += crop_size_squ;
     }
     /* Merge the separate channels into a single image. */
     cv::Mat mean;
@@ -153,19 +84,17 @@ void Classifier::SetMean(int cropSize, float r, float g, float b) {
 }
 
 void Classifier::LoadTag(const string& label_path) {
-    //	char *labelled_chars   = "/home/nisp/image-classify/c-working/models-porn/caffe_15_09_29_labeltag";
     const char *label_char = label_path.c_str();
-    std::ifstream labels(label_char);
-    string line;
-    lableSize = 0;
+    std::ifstream labels(label_char);       //读取label_path所指定的文件
+    string line;                            //缓存
+    label_size_ = 0;
     while (std::getline(labels, line)) {
         labels_.push_back(string(line));
-        lableSize++;
+        label_size_++;
     }
-    std::cout << "labelSize is : " << lableSize << std::endl;
 }
 
-/*  分类 */
+
 std::vector<float> Classifier::Predict(const cv::Mat &img) {
     //Blob<float>* input_layer = net_->input_blobs()[0];
 
@@ -178,7 +107,7 @@ std::vector<float> Classifier::Predict(const cv::Mat &img) {
     const float *begin = output_layer->cpu_data();
     //  const float* end = begin + output_layer->channels();
     const float *end =
-            begin + lableSize; //训练数据时采用的是默认的1000类，所以output_layer->channels()是1000，这样是不对的，为了简单期间，色情图像只是分为2类，所以使用这个2，以后再改
+            begin + label_size_; //训练数据时采用的是默认的1000类，所以output_layer->channels()是1000，这样是不对的，为了简单期间，色情图像只是分为2类，所以使用这个2，以后再改
 
     input_channels.clear();
     //input_layer = NULL;
@@ -211,7 +140,7 @@ void Classifier::WrapInputLayer(std::vector <cv::Mat> *input_channels) {    //ha
     input_data = NULL;
 }
 
-//数据预处理
+
 void Classifier::Preprocess(const cv::Mat &img,
                             std::vector <cv::Mat> *input_channels) {            //all have been clear
     /* Convert the input image to the input image format of the network. */
@@ -238,7 +167,7 @@ void Classifier::Preprocess(const cv::Mat &img,
     if (num_channels_ == 3)
         sample_resized.convertTo(sample_float, CV_32FC3);     // 三通道(彩色)
     else
-        sample_resized.convertTo(sample_float, CV_32FC1);     // 单通道    (灰度)
+        sample_resized.convertTo(sample_float, CV_32FC1);     // 单通道(灰度)
 
     cv::Mat sample_normalized;
     cv::subtract(sample_float, mean_, sample_normalized);
@@ -248,7 +177,6 @@ void Classifier::Preprocess(const cv::Mat &img,
     * objects in input_channels.
     此操作将数据 BGR 直接写入输入层对象input_channels */
     cv::split(sample_normalized, *input_channels);
-
 }
 
 /**
@@ -449,3 +377,29 @@ string Classifier::CheckTarget(const cv::Mat &img) {
     return opResult;
 }
 
+
+
+/**
+ * 比较器，比较两个pair里的数值哪个大，用来选取较大的那个pair数值
+ * 使用的地点在Argmax中，是partial_sort中的比较器
+*/
+static bool PairCompare(const std::pair<float, int> &lhs,
+                        const std::pair<float, int> &rhs) {
+    return lhs.first > rhs.first;
+}
+
+/* Return the indices of the top N values of vector v. */
+/* 返回数组v[] 最大值的前 N 个序号数组 */
+static std::vector<int> Argmax(const std::vector<float> &v, int N) {
+    std::vector <std::pair<float, int>> pairs;
+    for (size_t i = 0; i < v.size(); ++i)
+        pairs.push_back(std::make_pair(v[i], i));
+    std::partial_sort(pairs.begin(), pairs.begin() + N, pairs.end(),
+                      PairCompare);
+    std::vector<int> result;
+    for (int i = 0; i < N; ++i)
+        result.push_back(pairs[i].second);
+
+    pairs.clear();
+    return result;
+}
