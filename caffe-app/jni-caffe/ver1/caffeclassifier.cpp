@@ -1,8 +1,7 @@
 #include "caffeclassifier.h"
 
 
-Classifier::Classifier(int gpu_device, string proto_path, string model_path, string label_path, int crop_size, int r,
-                       int g, int b) {
+Classifier::Classifier(int gpu_device, string proto_path, string model_path, string label_path, int r, int g, int b) {
 
     std::cout << "status check: start initiating caffe classifier model "
               << std::endl; //系统开始运行时候打印一行表示进入到了初始化阶段（个人习惯而已，其实这里用cout不好）
@@ -30,7 +29,7 @@ Classifier::Classifier(int gpu_device, string proto_path, string model_path, str
     //通常情况下，input的的batch size 是由prototxt里控制的，这里因为是设置为单线程处理的，所以输入的batch size直接是设为1了，如果是以外层控制的方式输入的，则这里并不需要上面5行函数
     //当然，如果输入的batch size并不等于预设的情况下，也可以再函数中控制batch size的数量
 
-    SetMean(crop_size, r, g, b); // 直接设定均值图像的大小与rgb均值，GoogLeNet及其之后，均值都是直接设定了直接相减的
+    SetMean(r, g, b); // 直接设定均值图像的大小与rgb均值，GoogLeNet及其之后，均值都是直接设定了直接相减的
 
     LoadTag(label_path);     //加载分类标签，原始的输出类别是数字，加个tag的话，类别输出明显些
 
@@ -52,39 +51,9 @@ std::vector <Prediction> Classifier::Classify(const cv::Mat &img, int N) {
 }
 
 
-void Classifier::SetMean(int crop_size, float r, float g, float b) {
-    std::vector <cv::Mat> channels;
-    float *meanData;
-    int crop_size_squ = crop_size * crop_size;
-    meanData = new float[crop_size_squ * 3];
-    for (int i = 0; i < crop_size_squ; i++) {
-        meanData[i] = r;
-    }
-    int startPo = crop_size_squ;
-    for (int i = 0; i < crop_size_squ; i++) {
-        meanData[startPo + i] = g;
-    }
-    startPo += crop_size_squ;
-    for (int i = 0; i < crop_size_squ; i++) {
-        meanData[startPo + i] = b;
-    }
-
-    float *data = meanData;
-
-    for (int i = 0; i < num_channels_; ++i) {
-        cv::Mat channel(crop_size, crop_size, CV_32FC1, data);
-        channels.push_back(channel);
-        data += crop_size_squ;
-    }
-    /* Merge the separate channels into a single image. */
-    cv::Mat mean;
-    cv::merge(channels, mean);
-    /* Compute the global mean pixel value and create a mean image
-    * filled with this value. */
-    cv::Scalar channel_mean = cv::mean(mean);
-    mean_ = cv::Mat(input_geometry_, mean.type(), channel_mean);
-    channels.clear();
-    delete[] meanData;
+void Classifier::SetMean(float r, float g, float b) {
+    mean_ = cv::Mat(input_geometry_, CV_32FC3, Scalar(r,g,b,0));
+//    std::cout << "param check @ SetMean, values of (1,1) :" << mean_.at<Vec3f>(1,1)[0] << " vs " << mean_.at<Vec3f>(1,1)[1]  << " vs " << mean_.at<Vec3f>(1,1)[2]<< std::endl;
 }
 
 void Classifier::LoadTag(const string &label_path) {
@@ -221,12 +190,12 @@ int Classifier::isTarget(const cv::Mat &img) {
     }
 }
 
-/**
-* 设置图像的大小
-*/
-void Classifier::setResizeSize(int size) {
-    resizeSize = size;
-}
+///**
+//* 设置图像的大小
+//*/
+//void Classifier::setResizeSize(int size) {
+//    resizeSize = size;
+//}
 
 /**
 * 检查输入的图像流是否是色情图像

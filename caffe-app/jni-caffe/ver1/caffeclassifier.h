@@ -46,8 +46,7 @@ public:
      * @param b 图像的平均值，b通道
      * @return 类的初始化构造函数，所以没有return的值
      */
-    Classifier(int gpu_device, string proto_path, string model_path, string label_path, int crop_size, int r,
-               int g, int b);
+    Classifier(int gpu_device, string proto_path, string model_path, string label_path, int r, int g, int b);
 
     /**
      * Return the top N predictions. 分类并返回最大的前 N 个预测，是调用Predict函数完成分类，然后再在本函数里完成筛选前N个概率最大的类别的工作
@@ -73,19 +72,18 @@ public:
 
     string CheckTarget(const cv::Mat &img);
 
-    void setResizeSize(int size);
+//    void setResizeSize(int size);
 
 private:
 
     /**
      * 值得注意的是，这个函数里的设置实在是太为繁琐了，讲道理应该是有优化的空间的，可以直接省去绝大部分的代码
      * 函数直接设定均值图像的r，g，b通道的均值, GoogLeNet及其之后，均值都是直接设定了直接相减的
-     * @param crop_size 图像剪切的size
      * @param r r通道的均值
      * @param g g通道的均值
      * @param b b通道的均值
      */
-    void SetMean(int crop_size, float r, float g, float b);
+    void SetMean(float r, float g, float b);
 
     /**
      * 加载分类标签，原始的输出类别是数字，加个tag的话，类别输出明显些,tag的存放格式很简单，一行就是一个tag
@@ -119,7 +117,7 @@ private:
     int num_channels_;                          //网络通道数
     cv::Mat mean_;                              //均值图像，
     std::vector <string> labels_;                //目标标签数组
-    int resizeSize;
+//    int resizeSize;
     int label_size_;                                //类别的数目，用在截断类别输出时使用，如果是使用别人的模型直接finetuning的时候，类别是原始的类别，所以需要截断
     int gpu_device_;                                //设备id
 };

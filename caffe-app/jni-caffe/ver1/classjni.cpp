@@ -18,7 +18,7 @@ JNIEXPORT void JNICALL Java_com_netease_is_mi_illegal_image_ni_TargetClassifyJNI
     jstring jlabelPath, 
     jint deviceId, 
     jint threadNum,
-    jint squareSideLength, 
+    jint squareSideLength,  //这个参数是不需要的，可以移除掉，因为crop的size已经是在
     jfloat blueOfMean, 
     jfloat greenOfMean, 
     jfloat redOfMean
@@ -35,12 +35,11 @@ JNIEXPORT void JNICALL Java_com_netease_is_mi_illegal_image_ni_TargetClassifyJNI
             Classifier* classifier = new Classifier(deviceId, 
                                                     netPath, 
                                                     weightsPath,
-                                                    labelPath, 
-                                                    squareSideLength, 
+                                                    labelPath,
                                                     blueOfMean, 
                                                     greenOfMean, 
                                                     redOfMean);
-            classifier->setResizeSize(squareSideLength);
+            //classifier->setResizeSize(squareSideLength);
 			//classifier->setClassId(i);
             modelPool.insert(pair<int, Classifier*>(i, classifier));
         }
