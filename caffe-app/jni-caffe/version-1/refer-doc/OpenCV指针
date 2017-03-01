@@ -1,0 +1,68 @@
+http://blog.csdn.net/Leo_812/article/details/52029275
+
+最近在看caffe的源码，发现有一处使用OpenCV的指针比较巧妙，分享一下。
+example/cpp_clssification/classification.cpp中有这么一段代码：
+这段代码的是用于每次读取图片之后，将图片中的数据直接映射到caffe需要的格式，caffe里的数据是以Blob的形式存储，这里将opencv的Mat数据和Blob的数据放在共同的指针地址，就可以通过修改Mat的数据直接修改Blob数据。
+这样说有点抽象，下面看一个小的例子。
+
+void Classifier::WrapInputLayer(std::vector<cv::Mat>* input_channels) {
+  Blob<float>* input_layer = net_->input_blobs()[0];
+
+  int width = input_layer->width();
+  int height = input_layer->height();
+  float* input_data = input_layer->mutable_cpu_data();
+  for (int i = 0; i < input_layer->channels(); ++i) {
+    cv::Mat channel(height, width, CV_32FC1, input_data);
+    input_channels->push_back(channel);
+    input_data += width * height;
+  }
+}
+
+例子中展示了如何将Mat中的数据和字符串指针数据连接在一起的。
+
+int main()
+{
+    unsigned char f[6] = {1,2,3,4,5,6};
+    cv::Mat m(2,3,CV_8SC1,f);//通过指针创建Mat
+    cout<<"m:";
+    cout<<m<<endl;
+    //m:[  1,   2,   3;
+    //4,   5,   6]
+    unsigned char *s = m.data;
+    for(int i=0;i<6;++i){
+        s[i] = i+10; //修改Mat中的数据
+    }
+    cout<<"m:";
+    cout<<m<<endl;
+    //m:[ 10,  11,  12;
+    //13,  14,  15]
+    cout<<"f:";
+    for(int i=0;i<6;++i){
+        cout<<(int)f[i]<<"  "; //发现修改Mat中的数据，f的数据也变了
+    }
+    //f:10  11  12  13  14  15
+    cout<<endl;
+    for(int i=0;i<6;++i){
+        f[i] = i+20; //修改字符串f的数据
+    }
+    cout<<"m:";
+    cout<<m<<endl;  //Mat的数据随着f数据的改变而改变
+    //m:[ 20,  21,  22;
+    //23,  24,  25]
+    Mat m1(m,Rect(0,0,2,2)); //通过roi创建新的指针
+    cout<<"m1:";
+    cout<<m1<<endl;
+    //m1:[ 20,  21;
+    //23,  24]
+    Mat m2(m,Rect(2,0,1,2));
+    cout<<"m2:";
+    cout<<m2<<endl;
+    //m2:[ 22;
+    //25]
+    m2 = m2+10; //单独修改m2中的数据，m的数据被改变了，只改变了m2对应的部分
+    cout<<"m:";
+    cout<<m;
+    //m:[ 20,  21,  32;
+    // 23,  24,  35]
+    return 0;
+}
