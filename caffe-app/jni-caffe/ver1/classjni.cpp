@@ -5,11 +5,11 @@
 
 map<int, Classifier*> modelPool;
 /*
- * Class:     com_netease_is_mi_illegal_image_ni_TargetClassifyJNI
+ * Class:     com_hz_caffe_reading_TargetClassifyJNI
  * Method:    initModel
  * Signature: (Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;IIIFFF)V
  */
-JNIEXPORT void JNICALL Java_com_netease_is_mi_illegal_image_ni_TargetClassifyJNI_initModel
+JNIEXPORT void JNICALL Java_com_hz_caffe_reading_TargetClassifyJNI_initModel
 (
     JNIEnv *jenv, 
     jclass jcls, 
@@ -64,11 +64,11 @@ JNIEXPORT void JNICALL Java_com_netease_is_mi_illegal_image_ni_TargetClassifyJNI
 }
 
 /*
- * Class:     com_netease_is_mi_illegal_image_ni_TargetClassifyJNI
+ * Class:     com_hz_caffe_reading_TargetClassifyJNI
  * Method:    extractOutputOfLayer
  * Signature: ([BLjava/lang/String;I)[F
  */
-JNIEXPORT jfloatArray JNICALL Java_com_netease_is_mi_illegal_image_ni_TargetClassifyJNI_extractOutputOfLayer
+JNIEXPORT jfloatArray JNICALL Java_com_hz_caffe_reading_TargetClassifyJNI_extractOutputOfLayer
 (
     JNIEnv *jenv, 
     jclass jcls, 
@@ -115,11 +115,11 @@ JNIEXPORT jfloatArray JNICALL Java_com_netease_is_mi_illegal_image_ni_TargetClas
 }
 
 /*
- * Class:     com_netease_is_mi_illegal_image_ni_TargetClassifyJNI
+ * Class:     com_hz_caffe_reading_TargetClassifyJNI
  * Method:    forwardNet
  * Signature: ([BI)V
  */
-JNIEXPORT void JNICALL Java_com_netease_is_mi_illegal_image_ni_TargetClassifyJNI_forwardNet
+JNIEXPORT void JNICALL Java_com_hz_caffe_reading_TargetClassifyJNI_forwardNet
 (
     JNIEnv *jenv,
     jclass jcls,
@@ -154,11 +154,11 @@ JNIEXPORT void JNICALL Java_com_netease_is_mi_illegal_image_ni_TargetClassifyJNI
 }
 
 /*
- * Class:     com_netease_is_mi_illegal_image_ni_TargetClassifyJNI
+ * Class:     com_hz_caffe_reading_TargetClassifyJNI
  * Method:    getBlobOutputByName
  * Signature: (Ljava/lang/String;I)[F
  */
-JNIEXPORT jfloatArray JNICALL Java_com_netease_is_mi_illegal_image_ni_TargetClassifyJNI_getBlobOutputByName
+JNIEXPORT jfloatArray JNICALL Java_com_hz_caffe_reading_TargetClassifyJNI_getBlobOutputByName
 (
     JNIEnv *jenv,
     jclass jcls,
@@ -191,11 +191,11 @@ JNIEXPORT jfloatArray JNICALL Java_com_netease_is_mi_illegal_image_ni_TargetClas
 
 
 /*
- * Class:     com_netease_is_mi_illegal_image_ni_TargetClassifyJNI
+ * Class:     com_hz_caffe_reading_TargetClassifyJNI
  * Method:    targetCheck
  * Signature: ([BI)Ljava/lang/String;
  */
-JNIEXPORT jstring JNICALL Java_com_netease_is_mi_illegal_image_ni_TargetClassifyJNI_targetCheck
+JNIEXPORT jstring JNICALL Java_com_hz_caffe_reading_TargetClassifyJNI_targetCheck
 (
     JNIEnv *jenv, 
     jclass jcls, 
