@@ -47,29 +47,6 @@ JNIEXPORT jfloatArray JNICALL Java_com_netease_is_mi_illegal_image_ni_TargetClas
 JNIEXPORT jstring JNICALL Java_com_netease_is_mi_illegal_image_ni_TargetClassifyJNI_targetCheck
   (JNIEnv *, jclass, jbyteArray, jint);
 
-/*
- * Class:     com_netease_is_mi_illegal_image_ni_TargetClassifyJNI
- * Method:    initDetector
- * Signature: (Ljava/lang/String;Ljava/lang/String;I)V
- */
-JNIEXPORT void JNICALL Java_com_netease_is_mi_illegal_image_ni_TargetClassifyJNI_initDetector
-  (JNIEnv *, jclass, jstring, jstring, jint);
-
-/*
- * Class:     com_netease_is_mi_illegal_image_ni_TargetClassifyJNI
- * Method:    detectAndVerifyFace
- * Signature: ([BI)[F
- */
-JNIEXPORT jfloatArray JNICALL Java_com_netease_is_mi_illegal_image_ni_TargetClassifyJNI_detectAndVerifyFace
-  (JNIEnv *, jclass, jbyteArray, jint);
-
-/*
- * Class:     com_netease_is_mi_illegal_image_ni_TargetClassifyJNI
- * Method:    verifyFace
- * Signature: ([BI)Ljava/lang/String;
- */
-JNIEXPORT jstring JNICALL Java_com_netease_is_mi_illegal_image_ni_TargetClassifyJNI_verifyFace
-  (JNIEnv *, jclass, jbyteArray, jint);
 
 #ifdef __cplusplus
 }

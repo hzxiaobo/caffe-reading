@@ -240,8 +240,7 @@ char *Classifier::targetCheck(char *ipArr, int ipArrLength) {
         Caffe::SetDevice(gpu_device_);
 
         vector<char> imgArr(ipArrLength); //have been clear
-        std::cout << ">>>device id is : " << gpu_device_ << " & the length of image is : " << imgArr.size()
-                  << " classifer is : " << class_id << std::endl;
+        std::cout << ">>>device id is : " << gpu_device_ << " & the length of image is : " << imgArr.size() << std::endl;
         char *mpDst = &imgArr[0]; //已指向null
         memcpy(mpDst, ipArr, ipArrLength);
         Mat img = imdecode(imgArr, -1);

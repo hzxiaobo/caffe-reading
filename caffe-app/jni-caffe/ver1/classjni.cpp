@@ -2,10 +2,8 @@
 #include <string>
 #include "classjni.h"
 #include "caffeclassifier.h"
-#include "detector.h"
 
 map<int, Classifier*> modelPool;
-map<int, Detector*> detectorPool;
 /*
  * Class:     com_netease_is_mi_illegal_image_ni_TargetClassifyJNI
  * Method:    initModel
@@ -43,7 +41,7 @@ JNIEXPORT void JNICALL Java_com_netease_is_mi_illegal_image_ni_TargetClassifyJNI
                                                     greenOfMean, 
                                                     redOfMean);
             classifier->setResizeSize(squareSideLength);
-			classifier->setClassId(i);
+			//classifier->setClassId(i);
             modelPool.insert(pair<int, Classifier*>(i, classifier));
         }
 
@@ -237,156 +235,3 @@ JNIEXPORT jstring JNICALL Java_com_netease_is_mi_illegal_image_ni_TargetClassify
     return joutput;
 }
 
-/*
- * Class:     com_netease_is_mi_illegal_image_ni_TargetClassifyJNI
- * Method:    initDetector
- * Signature: (Ljava/lang/String;Ljava/lang/String;I)V
- */
-JNIEXPORT void JNICALL Java_com_netease_is_mi_illegal_image_ni_TargetClassifyJNI_initDetector
-(
-    JNIEnv* jenv, 
-    jclass jcls, 
-    jstring jfrontalPath, 
-    jstring jprofilePath, 
-    jint threadNum)
-{
-    try {
-        const char* frontalPathPtr = jenv->GetStringUTFChars(jfrontalPath, NULL);
-        const char* profilePathPtr = jenv->GetStringUTFChars(jprofilePath, NULL);
-        string frontalPath(frontalPathPtr);
-        string profilePath(profilePathPtr);
-        for (int i = 0; i < threadNum; ++i) {
-            Detector* detector = new Detector(frontalPath, profilePath);
-            detectorPool.insert(pair<int, Detector*>(i, detector));   
-        }
-
-        if (frontalPathPtr) {
-            jenv->ReleaseStringUTFChars(jfrontalPath, frontalPathPtr);
-        }
-        if (profilePathPtr) {
-            jenv->ReleaseStringUTFChars(jprofilePath, profilePathPtr);
-        }
-    } catch (Exception e) {
-
-    }
-
-}
-
-/*
- * Class:     com_netease_is_mi_illegal_image_ni_TargetClassifyJNI
- * Method:    detectAndVerifyFace
- * Signature: ([BI)[F
- */
-JNIEXPORT jfloatArray JNICALL Java_com_netease_is_mi_illegal_image_ni_TargetClassifyJNI_detectAndVerifyFace
-(
-    JNIEnv *jenv, 
-    jclass jcls, 
-    jbyteArray jimageBytes, 
-    jint threadId
-)
-{
-    jfloatArray joutputArray = NULL;
-    try {
-        if (detectorPool.count(threadId)) {
-            jsize len = jenv->GetArrayLength(jimageBytes);
-            jbyte* bytePtr = jenv->GetByteArrayElements(jimageBytes, 0);
-            vector<char> imgVec(len); //have been clear	
-			char* mpDst = &imgVec[0]; //已指向null
-			memcpy(mpDst, bytePtr, len);
-            Mat img = imdecode(imgVec, -1);
-            
-            Detector * detector = detectorPool[threadId];
-            vector<Rect> faces = detector->detect(img);
-            std::cout << "face: " << faces.size() << std::endl;
-
-            if (faces.size() > 0) {
-                vector<float> faces_feat;
-                Classifier* classifier = modelPool[threadId];
-                for ( int i = 0; i < faces.size(); ++i ) {
-                    Mat face(img, faces[i]);
-                    Mat crop;
-                    resize(face, crop, Size(224, 224));
-                    shared_ptr<Blob<float> > outputBlob = classifier->GetLayerOutput(crop, "fc7");
-                    const float* begin = outputBlob->cpu_data();
-                    faces_feat.insert(faces_feat.end(), begin, begin+outputBlob->count());
-                }
-                joutputArray = jenv->NewFloatArray(faces_feat.size());
-                if (joutputArray != NULL) {
-                    jenv->SetFloatArrayRegion(joutputArray, 0, faces_feat.size(), &faces_feat[0]);
-                } 
-            }
-            
-            // release resources
-            if (bytePtr != NULL) {
-                jenv->ReleaseByteArrayElements(jimageBytes, bytePtr, 0);
-            }  
-            imgVec.clear();
-            mpDst = NULL;  
-        }
-    } catch (Exception e) {
-
-    }
-    return joutputArray;
-}
-
-/*
- * Class:     com_netease_is_mi_illegal_image_ni_TargetClassifyJNI
- * Method:    verifyFace
- * Signature: ([BI)Ljava/lang/String;
- */
-JNIEXPORT jstring JNICALL Java_com_netease_is_mi_illegal_image_ni_TargetClassifyJNI_verifyFace
-(
-    JNIEnv *jenv, 
-    jclass jcls, 
-    jbyteArray jimageBytes, 
-    jint threadId
-) 
-{
-    jstring joutput = 0;
-    const char* outputStrPtr = NULL;
-    try {
-        if (detectorPool.count(threadId)) {
-            jsize len = jenv->GetArrayLength(jimageBytes);
-            jbyte* bytePtr = jenv->GetByteArrayElements(jimageBytes, 0);
-            vector<char> imgVec(len); //have been clear	
-			char* mpDst = &imgVec[0]; //已指向null
-			memcpy(mpDst, bytePtr, len);
-            Mat img = imdecode(imgVec, -1);
-            
-            Detector * detector = detectorPool[threadId];
-            vector<Rect> faces = detector->detect(img);
-            std::cout << "face: " << faces.size() << std::endl;
-
-            if (faces.size() > 0) {
-                string final_str = "";
-                // vector<float> faces_feat;
-                Classifier* classifier = modelPool[threadId];
-                for ( int i = 0; i < faces.size(); ++i ) {
-                    Mat face(img, faces[i]);
-                    Mat crop;
-                    resize(face, crop, Size(224, 224));
-                    string result_str = classifier->CheckTarget(crop); 
-                    final_str += result_str;
-                    if (i != faces.size() - 1) {
-                        final_str += "|";
-                    }
-                }
-                // cout << "feat size: " << faces_feat.size() << endl;
-                outputStrPtr = final_str.c_str();
-                if (outputStrPtr != NULL) {
-                    joutput = jenv->NewStringUTF(outputStrPtr);
-                }    
-            }  
-            // realease resources            
-            if (bytePtr != NULL) {
-                jenv->ReleaseByteArrayElements(jimageBytes, bytePtr, 0);
-            }  
-            faces.clear();
-            imgVec.clear();
-            mpDst = NULL;                
-        }
-    } catch (Exception e) {
-        std::cout << "verify face exceptions" << std::endl;
-    }
-    return joutput;
-}
