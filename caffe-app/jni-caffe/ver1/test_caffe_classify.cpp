@@ -13,7 +13,7 @@ using namespace std;
 int main(int argc, char** argv) {
 
 	Classifier* classifier = new Classifier(0,"/home/xiaobo/work/caffe-test/new-version/target/models/terror.prototxt","/home/xiaobo/work/caffe-test/new-version/target/models/terror.caffemodel","/home/xiaobo/work/caffe-test/new-version/target/models/terror.labeltag",
-	256,104,117,123); //创建分类器
+	104,117,123); //创建分类器
 	string listFile = "../samples/testList.list";
 	string loadPath = "../samples/";
 	vector < string > fileList = FileProcess::readFileList(listFile);
