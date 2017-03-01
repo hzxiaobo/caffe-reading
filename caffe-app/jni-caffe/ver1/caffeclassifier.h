@@ -21,6 +21,10 @@ using namespace cv;
 typedef std::pair<string, float> Prediction;
 
 
+static std::vector<int> Argmax(const std::vector<float> &v, int N);
+static bool PairCompare(const std::pair<float, int> &lhs, const std::pair<float, int> &rhs);
+
+
 /**
  * 本代码是README.md中的第一种解决caffe forward的多线程的解决方案，即
     1.修改调用方，使其load多个Classifier类，即初始化多个Net和Blob，然后在调用方控制多线程的数量；
@@ -61,9 +65,9 @@ public:
 
     float *showFeatureExtract(const cv::Mat &img, string fc, int feature_length);
 
-    shared_ptr <Blob<float>> GetLayerOutput(const cv::Mat &img, string fc);
+    shared_ptr <Blob<float> > GetLayerOutput(const cv::Mat &img, string fc);
 
-    shared_ptr <Blob<float>> GetBlobByName(string blob_name);
+    shared_ptr <Blob<float> > GetBlobByName(string blob_name);
 
     void Forward(const cv::Mat &img);
 

@@ -4,11 +4,15 @@
 Classifier::Classifier(int gpu_device, string proto_path, string model_path, string label_path, int crop_size, int r,
                        int g, int b) {
 
-    std::cout << "status check: start initiating caffe classifier model " << std::endl; //系统开始运行时候打印一行表示进入到了初始化阶段（个人习惯而已，其实这里用cout不好）
+    std::cout << "status check: start initiating caffe classifier model "
+              << std::endl; //系统开始运行时候打印一行表示进入到了初始化阶段（个人习惯而已，其实这里用cout不好）
+    //测试用，用来设置为CPU模式
+    Caffe::set_mode(Caffe::CPU); //函数在common.cpp中，用来设置是GPU求解还是CPU求解，如果要使用CPU的话，请在这里使用Caffe::set_mode(Caffe::CPU);
+    gpu_device_ = -1;    //将全局device变量设为指定的device，后续求解的时候需要这个全局变量来指定device
 
-    Caffe::set_mode(Caffe::GPU); //函数在common.cpp中，用来设置是GPU求解还是CPU求解，如果要使用CPU的话，请在这里使用Caffe::set_mode(Caffe::CPU);
-    gpu_device_ = gpu_device;    //将全局device变量设为指定的device，后续求解的时候需要这个全局变量来指定device
-    Caffe::SetDevice(gpu_device_); //函数在common.cpp中，设置proto以及模型load的gpu device（多gpu机器上需要指定gpu的device）
+//    Caffe::set_mode(Caffe::GPU); //函数在common.cpp中，用来设置是GPU求解还是CPU求解，如果要使用CPU的话，请在这里使用Caffe::set_mode(Caffe::CPU);
+//    gpu_device_ = gpu_device;    //将全局device变量设为指定的device，后续求解的时候需要这个全局变量来指定device
+//    Caffe::SetDevice(gpu_device_); //函数在common.cpp中，设置proto以及模型load的gpu device（多gpu机器上需要指定gpu的device）
 
     net_ = new Net<float>(proto_path, TEST);    //函数在net.cpp里，用以load本地储存的proto.txt文件，然后初始化caffe网络
     //从训练好的模型中，拷贝参数
@@ -51,7 +55,7 @@ std::vector <Prediction> Classifier::Classify(const cv::Mat &img, int N) {
 void Classifier::SetMean(int crop_size, float r, float g, float b) {
     std::vector <cv::Mat> channels;
     float *meanData;
-    int crop_size_squ = crop_size*crop_size;
+    int crop_size_squ = crop_size * crop_size;
     meanData = new float[crop_size_squ * 3];
     for (int i = 0; i < crop_size_squ; i++) {
         meanData[i] = r;
@@ -83,7 +87,7 @@ void Classifier::SetMean(int crop_size, float r, float g, float b) {
     delete[] meanData;
 }
 
-void Classifier::LoadTag(const string& label_path) {
+void Classifier::LoadTag(const string &label_path) {
     const char *label_char = label_path.c_str();
     std::ifstream labels(label_char);       //读取label_path所指定的文件
     string line;                            //缓存
@@ -319,7 +323,7 @@ string Classifier::hardFilter(std::vector <Prediction> predictions,
     }
 }
 
-shared_ptr <Blob<float>> Classifier::GetLayerOutput(const cv::Mat &img, string fc) {
+shared_ptr <Blob<float> > Classifier::GetLayerOutput(const cv::Mat &img, string fc) {
     Caffe::set_mode(Caffe::GPU);
     Caffe::SetDevice(gpu_device_);
 
@@ -328,13 +332,13 @@ shared_ptr <Blob<float>> Classifier::GetLayerOutput(const cv::Mat &img, string f
     Preprocess(img, &input_channels);       //数据预处理
     net_->ForwardPrefilled();               //前向计算
 
-    shared_ptr <Blob<float>> outputBlob = net_->blob_by_name(fc);
+    shared_ptr <Blob<float> > outputBlob = net_->blob_by_name(fc);
     return outputBlob;
 }
 
 
-shared_ptr <Blob<float>> Classifier::GetBlobByName(string blob_name) {
-    shared_ptr <Blob<float>> outputBlob = net_->blob_by_name(blob_name);
+shared_ptr <Blob<float> > Classifier::GetBlobByName(string blob_name) {
+    shared_ptr <Blob<float> > outputBlob = net_->blob_by_name(blob_name);
     return outputBlob;
 }
 
@@ -376,7 +380,6 @@ string Classifier::CheckTarget(const cv::Mat &img) {
 }
 
 
-
 /**
  * 比较器，比较两个pair里的数值哪个大，用来选取较大的那个pair数值
  * 使用的地点在Argmax中，是partial_sort中的比较器
@@ -389,7 +392,7 @@ static bool PairCompare(const std::pair<float, int> &lhs,
 /* Return the indices of the top N values of vector v. */
 /* 返回数组v[] 最大值的前 N 个序号数组 */
 static std::vector<int> Argmax(const std::vector<float> &v, int N) {
-    std::vector <std::pair<float, int>> pairs;
+    std::vector <std::pair<float, int> > pairs;
     for (size_t i = 0; i < v.size(); ++i)
         pairs.push_back(std::make_pair(v[i], i));
     std::partial_sort(pairs.begin(), pairs.begin() + N, pairs.end(),
