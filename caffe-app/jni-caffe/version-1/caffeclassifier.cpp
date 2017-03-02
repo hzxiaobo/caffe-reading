@@ -52,8 +52,9 @@ std::vector <Prediction> Classifier::Classify(const cv::Mat &img, int N) {
 
 
 void Classifier::SetMean(float r, float g, float b) {
-    mean_ = cv::Mat(input_geometry_, CV_32FC3, Scalar(r,g,b,0));
+    mean_ = cv::Mat(input_geometry_, CV_32FC3, Scalar(r,g,b));
 //    std::cout << "param check @ SetMean, values of (1,1) :" << mean_.at<Vec3f>(1,1)[0] << " vs " << mean_.at<Vec3f>(1,1)[1]  << " vs " << mean_.at<Vec3f>(1,1)[2]<< std::endl;
+//    getchar();
 }
 
 void Classifier::LoadTag(const string &label_path) {
