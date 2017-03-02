@@ -151,26 +151,18 @@ void Classifier::Preprocess(const cv::Mat &img,
     cv::split(sample_normalized, *input_channels);
 }
 
+
 /**
-* load本地图像，判断是否时porn图像
-*/
+ * 实现的有些低效，并不需要这样来实现，如果要输出数字，其实不需要转一道Prediction的
+ */
 int Classifier::isTarget(const cv::Mat &img) {
     try {
         if (img.cols == 0 || img.rows == 0) {
             std::cout << "image load failed" << std::endl;
             return 0;
         }
-        //以下注释的部分是图像是整体一块输入的
-        //				vector < Mat > images = imgBaseProcess::regularSlice(img, 256, 3, 30); //have been clear
-        //				std::cout << "@slices size is : " << images.size() << std::endl;
-        int pornTag = -1;
-        //				for (int i = 0; i < images.size(); i++) {
-        std::vector <Prediction> predictions = Classify(img, labels_.size()); //分类 have been clear
-        /* Print the top N predictions. 打印前N 个预测值*/
-
-        string tag = hardFilter(predictions, "normal", 0.33);
-
-
+        std::vector <Prediction> predictions = Classify(img, labels_.size());
+        string tag = predictions[0].first;
         predictions.clear();
         for (int i = 0; i < labels_.size(); i++) {
             if (tag == labels_[i]) {
@@ -178,54 +170,40 @@ int Classifier::isTarget(const cv::Mat &img) {
             }
         }
         return 0;
-        //		if (tag == "normal") {
-        //			return 0;
-        //		} else if (tag == "terror") {
-        //			return 1;
-        //		} else {
-        //			return 0;
-        //		}
-
     } catch (Exception e) {
         return -1;
     }
 }
 
-///**
-//* 设置图像的大小
-//*/
-//void Classifier::setResizeSize(int size) {
-//    resizeSize = size;
-//}
 
-/**
-* 检查输入的图像流是否是色情图像
-*/
 char *Classifier::targetCheck(char *ipArr, int ipArrLength) {
     try {
         if (ipArrLength < 1) {
             return 0;
         }
+        //值得注意的是下面两句话，当初始化初始的是GPU的时候，下面这两句话并不起作用
         Caffe::set_mode(Caffe::GPU);
         Caffe::SetDevice(gpu_device_);
 
-        vector<char> imgArr(ipArrLength); //have been clear
-        std::cout << ">>>device id is : " << gpu_device_ << " & the length of image is : " << imgArr.size() << std::endl;
+        //下面这段opencv的代码是直接将图像处理的byte[]从内存里直接转为Mat，而不需要将图像储存在本地，节省两次io（储存一次，删除一次）
+        vector<char> imgArr(ipArrLength);
+        std::cout << "param check, device id is : " << gpu_device_ << " & the length of image is : " << imgArr.size() << std::endl;
         char *mpDst = &imgArr[0]; //已指向null
         memcpy(mpDst, ipArr, ipArrLength);
-        Mat img = imdecode(imgArr, -1);
+        Mat img = imdecode(imgArr, -1);//imdecode里的int flags跟imread()里的int flags意义一样，1代表3通道，0代表灰度图，-1代表图是什么通道的就load什么通道
         imgArr.clear();
         mpDst = NULL;
 
-        if (img.cols < 4 || img.rows < 4) {
-            std::cout << ">>>image load failed" << std::endl;
+        //检查下图像的尺寸，看看是否转化成功
+        if (img.cols == 0 || img.rows == 0) {
+            std::cout << "warn, load image failed!" << std::endl;
             return 0;
         }
 
-        std::vector <Prediction> predictions = Classify(img, labels_.size()); //分类 have been clear
+        std::vector <Prediction> predictions = Classify(img, labels_.size());
 
+        //以下是拼接从c++端到java端的输出
         string opResult = "";
-
         for (int i = 0; i < labels_.size(); i++) {
             opResult.append(predictions[i].first);
             opResult.append(":");
@@ -235,62 +213,23 @@ char *Classifier::targetCheck(char *ipArr, int ipArrLength) {
                 opResult.append(",");
             }
         }
-        std::cout << "c++ op: target opResult : " << opResult << std::endl;
+        std::cout << "result check, op result is: " << opResult << std::endl;
 
-//	        string mResultStr = "-1";
+        //注意下面这段代码，之所以采用的malloc的方式，是因为直接将char*或者string 输出的时候，会有小概率输出为空（大概10%~20%左右），所以只能这样输出
         char *ch = (char *) malloc(sizeof(char) * (opResult.length() + 1));
         strcpy(ch, opResult.c_str());
         return ch;
 
-
-//			string tag = hardFilter(predictions, "normal", 0.33);
-//			predictions.clear();
-//			for(int i = 0 ; i < labels_.size() ;i++){
-//				if (tag == labels_[i]){
-//					return i;
-//				}
-//			}
-//			return 0;
-
     } catch (Exception e) {
-        std::cout << ">>>c++ error" << std::endl;
+        std::cout << "error, c++ process error" << std::endl;
     }
-
+    //如果出现了error，就直接返回一个-1给到外面的java端好了
     string mResultStr = "-1";
     char *ch = (char *) malloc(sizeof(char) * (mResultStr.length() + 1));
     strcpy(ch, mResultStr.c_str());
     return ch;
 }
 
-
-/**
-* 对于预测再过滤，主要是为了处理某些normal 0.6，porn 0.3的情况，这种情况线上使用的时候应当一律归结为terror
-*/
-string Classifier::hardFilter(std::vector <Prediction> predictions,
-                              string normalTag, float ratio) {
-    if (predictions[0].first != normalTag) {
-        return predictions[0].first;
-    } else {
-        float normalPro = predictions[0].second;
-        float carePro = 1 - normalPro;
-        if (normalPro == 0) {
-            if (predictions.size() <= 1) {
-                return "care";
-            } else {
-                return predictions[1].first;
-            }
-        }
-        if (carePro / normalPro > ratio) {
-            if (predictions.size() <= 1) {
-                return "care";
-            } else {
-                return predictions[1].first;
-            }
-        } else {
-            return predictions[0].first;
-        }
-    }
-}
 
 shared_ptr <Blob<float> > Classifier::GetLayerOutput(const cv::Mat &img, string fc) {
     Caffe::set_mode(Caffe::GPU);
@@ -349,17 +288,12 @@ string Classifier::CheckTarget(const cv::Mat &img) {
 }
 
 
-/**
- * 比较器，比较两个pair里的数值哪个大，用来选取较大的那个pair数值
- * 使用的地点在Argmax中，是partial_sort中的比较器
-*/
 static bool PairCompare(const std::pair<float, int> &lhs,
                         const std::pair<float, int> &rhs) {
     return lhs.first > rhs.first;
 }
 
-/* Return the indices of the top N values of vector v. */
-/* 返回数组v[] 最大值的前 N 个序号数组 */
+
 static std::vector<int> Argmax(const std::vector<float> &v, int N) {
     std::vector <std::pair<float, int> > pairs;
     for (size_t i = 0; i < v.size(); ++i)

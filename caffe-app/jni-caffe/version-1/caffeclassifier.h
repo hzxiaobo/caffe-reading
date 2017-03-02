@@ -20,8 +20,14 @@ using namespace cv;
 /* pair(标签，置信度)  预测值 */
 typedef std::pair<string, float> Prediction;
 
-
+/* Return the indices of the top N values of vector v. */
+/* 返回数组v[] 最大值的前 N 个序号数组 */
 static std::vector<int> Argmax(const std::vector<float> &v, int N);
+
+/**
+ * 比较器，比较两个pair里的数值哪个大，用来选取较大的那个pair数值
+ * 使用的地点在Argmax中，是partial_sort中的比较器
+*/
 static bool PairCompare(const std::pair<float, int> &lhs, const std::pair<float, int> &rhs);
 
 
@@ -56,8 +62,20 @@ public:
      */
     std::vector <Prediction> Classify(const cv::Mat &img, int N = 1); //分类，默认返回前5个预测值[(标签，置信度),... ] 数组
 
+    /**
+     * 输入一张图像的Mat，输出识别的结果，用数字来代替类别
+     * @param img 输入的图像
+     * @return 输出是否是待检测的目标（如果是2类分类的情况，通常情况下，1代表是目标，0代表不是目标
+     */
     int isTarget(const cv::Mat &img);
 
+    /**
+     * 输入一张图像的流数据，输出分类的结果（含分类概率），其结果是封在了char *中，输出到调用端，供调用端解析
+     * 当然，更为合适的方式是直接拿到blob层的结果，直接将该层的结果输出出去也就是下面
+     * @param ipArr 输入的图像流
+     * @param ipArrLength 输入的图像流的长度
+     * @return 返回类别+概率，需要调用端依据格式解析,其格式是：  类别1:score1,类别2:score2,...， 其中score*均为 100分制的
+     */
     char *targetCheck(char *ipArr, int ipArrLength);
 
     float *targetFeatureExtract(char *ipArr, int ipArrLength, string fc, int feature_length);
@@ -106,8 +124,6 @@ private:
      * @param input_channels 相应的input_channels
      */
     void Preprocess(const cv::Mat &img, std::vector <cv::Mat> *input_channels);
-
-    string hardFilter(std::vector <Prediction> predictions, string normalTag, float ratio);
 
     float *ExtractFeature(const cv::Mat &img, string fc);
 
