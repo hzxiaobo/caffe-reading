@@ -282,7 +282,7 @@ string Classifier::CheckTarget(const cv::Mat &img) {
             opResult.append(",");
         }
     }
-    std::cout << "c++ op: target opResult : " << opResult << std::endl;
+    std::cout << "result check: target opResult : " << opResult << std::endl;
 
     return opResult;
 }
