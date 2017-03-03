@@ -73,8 +73,9 @@ std::vector<float> Classifier::Predict(const cv::Mat &img) {
     //Blob<float>* input_layer = net_->input_blobs()[0];
 
     std::vector <cv::Mat> input_channels;
-    WrapInputLayer(&input_channels);        //打包输入层
     Preprocess(img, &input_channels);       //数据预处理
+    PushInputLayer(&input_channels);        //打包输入层
+
 
     Blob<float> *input_layer = net_->input_blobs()[0];
 
@@ -103,6 +104,8 @@ std::vector<float> Classifier::Predict(const cv::Mat &img) {
     }
     std::cout << std::endl;
 
+
+
     net_->ForwardPrefilled();               //前向计算
     /* Copy the output layer to a std::vector */
     Blob<float> *output_layer = net_->output_blobs()[0];
@@ -124,6 +127,42 @@ std::vector<float> Classifier::Predict(const cv::Mat &img) {
 并不需要依靠cudaMemcpy2D 。最后预处理
 操作将直接写入不同通道的输入层。
 */
+void Classifier::PushInputLayer(std::vector <cv::Mat> *input_channels) {
+
+    Blob<float> *input_layer = net_->input_blobs()[0];
+    int width = input_layer->width();
+    int height = input_layer->height();
+    float *input_data = input_layer->mutable_cpu_data();
+
+    std::cout << width << " & " << height << std::endl;
+    getchar();
+
+    memcpy(input_data, ((*input_channels)[0].data), width*height*4);
+    input_data += width*height;
+    memcpy(input_data, ((*input_channels)[1].data), width*height*4);
+    input_data += width*height;
+    memcpy(input_data, ((*input_channels)[2].data), width*height*4);
+
+
+//    vector<char> imgArr(ipArrLength);
+//    std::cout << "param check, device id is : " << gpu_device_ << " & the length of image is : " << imgArr.size() << std::endl;
+//    char *mpDst = &imgArr[0]; //已指向null
+//    memcpy(mpDst, ipArr, ipArrLength);
+//
+//    memcpy()
+//    input_channels[0].data;
+//
+//    for (int i = 0; i < input_layer->channels(); ++i) {
+//        cv::Mat channel(height, width, CV_32FC1, input_data);
+//        input_channels->push_back(channel);
+//        input_data += width * height;
+//    }
+//    input_layer = NULL;
+//    input_data = NULL;
+}
+
+
+
 void Classifier::WrapInputLayer(std::vector <cv::Mat> *input_channels) {
 
     Blob<float> *input_layer = net_->input_blobs()[0];
