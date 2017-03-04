@@ -75,34 +75,6 @@ std::vector<float> Classifier::Predict(const cv::Mat &img) {
     std::vector <cv::Mat> input_channels;
     WrapInputLayer(&input_channels);        //打包输入层
     Preprocess(img, &input_channels);       //数据预处理
-
-    Blob<float> *input_layer = net_->input_blobs()[0];
-
-    int width = input_layer->width();
-    int height = input_layer->height();
-    float *input_data = input_layer->mutable_cpu_data();
-    for(int i = 0 ; i < width*height ; i++){
-        if (i < 10 || i > width*height - 10){
-            std::cout << *input_data << " " ;
-        }
-        input_data ++ ;
-    }
-    std::cout << std::endl;
-    for(int i = 0 ; i < width*height ; i++){
-        if (i < 10 || i > width*height - 10){
-            std::cout << *input_data << " " ;
-        }
-        input_data ++ ;
-    }
-    std::cout << std::endl;
-    for(int i = 0 ; i < width*height ; i++){
-        if (i < 10 || i > width*height - 10){
-            std::cout << *input_data << " " ;
-        }
-        input_data ++ ;
-    }
-    std::cout << std::endl;
-
     net_->ForwardPrefilled();               //前向计算
     /* Copy the output layer to a std::vector */
     Blob<float> *output_layer = net_->output_blobs()[0];
