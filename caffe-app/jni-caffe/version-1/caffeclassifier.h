@@ -116,6 +116,16 @@ private:
      */
     std::vector<float> Predict(const cv::Mat &img);
 
+    /**
+     * Wrap the input layer of the network in separate cv::Mat objects
+     * (one per channel). This way we save one memcpy operation and we
+     * don't need to rely on cudaMemcpy2D. The last preprocessing
+     * operation will write the separate channels directly to the input layer.
+     * 打包网络中不同的的输入层 cv:Mat 对象（每个通道一个）。这样我们保存一个 memcpy的操作，我们
+     * 并不需要依靠cudaMemcpy2D 。最后预处理操作将直接写入不同通道的输入层。
+     * 使用opencv指针的方式，将图像的Mat数据和Blob的数据放在共同的指针地址
+     * @param input_channels 要使用指针将Blob与Mat<vector>变成共同指针的输入数据
+     */
     void WrapInputLayer(std::vector <cv::Mat> *input_channels);
 
     /**
