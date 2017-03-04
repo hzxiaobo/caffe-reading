@@ -137,6 +137,14 @@ private:
 
     float *ExtractFeature(const cv::Mat &img, string fc);
 
+    /**
+     * 输出指定层的数据，用来检查函数调用以及输出是否正确
+     * @param layer_name 待查看数据的layer层的名字
+     * @param po 从第po个开始输出
+     * @param n 从po处开始向后数n个位置，都展示出来
+     */
+    void ShowLayerData(string layer_name, int po, int n = 5);
+
 private:
     Net<float> *net_;                           //caffe分类网络对象
     cv::Size input_geometry_;                   //输入图像几何尺寸

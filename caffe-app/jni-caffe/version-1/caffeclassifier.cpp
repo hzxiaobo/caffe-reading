@@ -222,6 +222,50 @@ char *Classifier::targetCheck(char *ipArr, int ipArrLength) {
 }
 
 
+void Classifier::ShowLayerData(string layer_name, int po, int n){
+    if (n <= 0 ){ //如果n的数目小于等于0 则直接return
+        return ;
+    }
+    //以下这一部分待测试，需要在caffe环境下测试可用性
+//    Blob<float> *show_layer;
+//    if (layer_name == "input_layer"){
+//        show_layer = net_->input_blobs()[0];
+//    }
+//    shared_ptr <Blob<float> > show_layer = net_->blob_by_name(layer_name);
+
+    float *show_data = show_layer->mutable_cpu_data();
+    show_data += po;
+    for(int i = 0 ; i < n ; i++){
+        std::cout << *show_data << " " ;
+        show_data ++ ;
+    }
+    std::cout << std::endl;
+
+//    int width = show_layer->width();
+//    int height = show_layer->height();
+//    for(int i = 0 ; i < width*height ; i++){
+//        if (i < n_shows || i > width*height - n_shows){
+//            std::cout << *show_data << " " ;
+//        }
+//        show_data ++ ;
+//    }
+//    std::cout << std::endl;
+//    for(int i = 0 ; i < width*height ; i++){
+//        if (i < n_shows || i > width*height - n_shows){
+//            std::cout << *show_data << " " ;
+//        }
+//        show_data ++ ;
+//    }
+//    std::cout << std::endl;
+//    for(int i = 0 ; i < width*height ; i++){
+//        if (i < n_shows || i > width*height - n_shows){
+//            std::cout << *show_data << " " ;
+//        }
+//        show_data ++ ;
+//    }
+}
+
+
 shared_ptr <Blob<float> > Classifier::GetLayerOutput(const cv::Mat &img, string fc) {
     Caffe::set_mode(Caffe::GPU);
     Caffe::SetDevice(gpu_device_);
