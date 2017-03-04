@@ -228,7 +228,7 @@ void Classifier::ShowLayerData(string layer_name, int po, int n){
     }
     //以下这一部分待测试，需要在caffe环境下测试可用性
 //    Blob<float> *show_layer;
-//    if (layer_name == "input_layer"){
+//    if (layer_name.compare("input_layer")){
 //        show_layer = net_->input_blobs()[0];
 //    }
 //    shared_ptr <Blob<float> > show_layer = net_->blob_by_name(layer_name);
