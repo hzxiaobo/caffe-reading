@@ -1,14 +1,17 @@
 #include "caffeclassifier.h"
 
 
-Classifier::Classifier(int gpu_device, string proto_path, string model_path, string label_path, int crop_size, int r,
-                       int g, int b) {
+Classifier::Classifier(int gpu_device, string proto_path, string model_path, string label_path, int r, int g, int b) {
 
-    std::cout << "status check: start initiating caffe classifier model " << std::endl; //系统开始运行时候打印一行表示进入到了初始化阶段（个人习惯而已，其实这里用cout不好）
+    std::cout << "status check: start initiating caffe classifier model "
+              << std::endl; //系统开始运行时候打印一行表示进入到了初始化阶段（个人习惯而已，其实这里用cout不好）
+    //测试用，用来设置为CPU模式
+    Caffe::set_mode(Caffe::CPU); //函数在common.cpp中，用来设置是GPU求解还是CPU求解，如果要使用CPU的话，请在这里使用Caffe::set_mode(Caffe::CPU);
+    gpu_device_ = -1;    //将全局device变量设为指定的device，后续求解的时候需要这个全局变量来指定device
 
-    Caffe::set_mode(Caffe::GPU); //函数在common.cpp中，用来设置是GPU求解还是CPU求解，如果要使用CPU的话，请在这里使用Caffe::set_mode(Caffe::CPU);
-    gpu_device_ = gpu_device;    //将全局device变量设为指定的device，后续求解的时候需要这个全局变量来指定device
-    Caffe::SetDevice(gpu_device_); //函数在common.cpp中，设置proto以及模型load的gpu device（多gpu机器上需要指定gpu的device）
+//    Caffe::set_mode(Caffe::GPU); //函数在common.cpp中，用来设置是GPU求解还是CPU求解，如果要使用CPU的话，请在这里使用Caffe::set_mode(Caffe::CPU);
+//    gpu_device_ = gpu_device;    //将全局device变量设为指定的device，后续求解的时候需要这个全局变量来指定device
+//    Caffe::SetDevice(gpu_device_); //函数在common.cpp中，设置proto以及模型load的gpu device（多gpu机器上需要指定gpu的device）
 
     net_ = new Net<float>(proto_path, TEST);    //函数在net.cpp里，用以load本地储存的proto.txt文件，然后初始化caffe网络
     //从训练好的模型中，拷贝参数
@@ -26,7 +29,7 @@ Classifier::Classifier(int gpu_device, string proto_path, string model_path, str
     //通常情况下，input的的batch size 是由prototxt里控制的，这里因为是设置为单线程处理的，所以输入的batch size直接是设为1了，如果是以外层控制的方式输入的，则这里并不需要上面5行函数
     //当然，如果输入的batch size并不等于预设的情况下，也可以再函数中控制batch size的数量
 
-    SetMean(crop_size, r, g, b); // 直接设定均值图像的大小与rgb均值，GoogLeNet及其之后，均值都是直接设定了直接相减的
+    SetMean(r, g, b); // 直接设定均值图像的大小与rgb均值，GoogLeNet及其之后，均值都是直接设定了直接相减的
 
     LoadTag(label_path);     //加载分类标签，原始的输出类别是数字，加个tag的话，类别输出明显些
 
@@ -48,42 +51,13 @@ std::vector <Prediction> Classifier::Classify(const cv::Mat &img, int N) {
 }
 
 
-void Classifier::SetMean(int crop_size, float r, float g, float b) {
-    std::vector <cv::Mat> channels;
-    float *meanData;
-    int crop_size_squ = crop_size*crop_size;
-    meanData = new float[crop_size_squ * 3];
-    for (int i = 0; i < crop_size_squ; i++) {
-        meanData[i] = r;
-    }
-    int startPo = crop_size_squ;
-    for (int i = 0; i < crop_size_squ; i++) {
-        meanData[startPo + i] = g;
-    }
-    startPo += crop_size_squ;
-    for (int i = 0; i < crop_size_squ; i++) {
-        meanData[startPo + i] = b;
-    }
-
-    float *data = meanData;
-
-    for (int i = 0; i < num_channels_; ++i) {
-        cv::Mat channel(crop_size, crop_size, CV_32FC1, data);
-        channels.push_back(channel);
-        data += crop_size_squ;
-    }
-    /* Merge the separate channels into a single image. */
-    cv::Mat mean;
-    cv::merge(channels, mean);
-    /* Compute the global mean pixel value and create a mean image
-    * filled with this value. */
-    cv::Scalar channel_mean = cv::mean(mean);
-    mean_ = cv::Mat(input_geometry_, mean.type(), channel_mean);
-    channels.clear();
-    delete[] meanData;
+void Classifier::SetMean(float r, float g, float b) {
+    mean_ = cv::Mat(input_geometry_, CV_32FC3, Scalar(r,g,b));
+//    std::cout << "param check @ SetMean, values of (1,1) :" << mean_.at<Vec3f>(1,1)[0] << " vs " << mean_.at<Vec3f>(1,1)[1]  << " vs " << mean_.at<Vec3f>(1,1)[2]<< std::endl;
+//    getchar();
 }
 
-void Classifier::LoadTag(const string& label_path) {
+void Classifier::LoadTag(const string &label_path) {
     const char *label_char = label_path.c_str();
     std::ifstream labels(label_char);       //读取label_path所指定的文件
     string line;                            //缓存
@@ -112,16 +86,7 @@ std::vector<float> Classifier::Predict(const cv::Mat &img) {
     return std::vector<float>(begin, end);
 }
 
-/* Wrap the input layer of the network in separate cv::Mat objects
-* (one per channel). This way we save one memcpy operation and we
-* don't need to rely on cudaMemcpy2D. The last preprocessing
-* operation will write the separate channels directly to the input
-* layer.
-打包网络中不同的的输入层 cv:Mat 对象
-（每个通道一个）。这样我们保存一个 memcpy的操作，我们
-并不需要依靠cudaMemcpy2D 。最后预处理
-操作将直接写入不同通道的输入层。
-*/
+
 void Classifier::WrapInputLayer(std::vector <cv::Mat> *input_channels) {
 
     Blob<float> *input_layer = net_->input_blobs()[0];
@@ -177,26 +142,18 @@ void Classifier::Preprocess(const cv::Mat &img,
     cv::split(sample_normalized, *input_channels);
 }
 
+
 /**
-* load本地图像，判断是否时porn图像
-*/
+ * 实现的有些低效，并不需要这样来实现，如果要输出数字，其实不需要转一道Prediction的
+ */
 int Classifier::isTarget(const cv::Mat &img) {
     try {
         if (img.cols == 0 || img.rows == 0) {
             std::cout << "image load failed" << std::endl;
             return 0;
         }
-        //以下注释的部分是图像是整体一块输入的
-        //				vector < Mat > images = imgBaseProcess::regularSlice(img, 256, 3, 30); //have been clear
-        //				std::cout << "@slices size is : " << images.size() << std::endl;
-        int pornTag = -1;
-        //				for (int i = 0; i < images.size(); i++) {
-        std::vector <Prediction> predictions = Classify(img, labels_.size()); //分类 have been clear
-        /* Print the top N predictions. 打印前N 个预测值*/
-
-        string tag = hardFilter(predictions, "normal", 0.33);
-
-
+        std::vector <Prediction> predictions = Classify(img, labels_.size());
+        string tag = predictions[0].first;
         predictions.clear();
         for (int i = 0; i < labels_.size(); i++) {
             if (tag == labels_[i]) {
@@ -204,55 +161,40 @@ int Classifier::isTarget(const cv::Mat &img) {
             }
         }
         return 0;
-        //		if (tag == "normal") {
-        //			return 0;
-        //		} else if (tag == "terror") {
-        //			return 1;
-        //		} else {
-        //			return 0;
-        //		}
-
     } catch (Exception e) {
         return -1;
     }
 }
 
-/**
-* 设置图像的大小
-*/
-void Classifier::setResizeSize(int size) {
-    resizeSize = size;
-}
 
-/**
-* 检查输入的图像流是否是色情图像
-*/
 char *Classifier::targetCheck(char *ipArr, int ipArrLength) {
     try {
         if (ipArrLength < 1) {
             return 0;
         }
+        //值得注意的是下面两句话，当初始化初始的是GPU的时候，下面这两句话并不起作用
         Caffe::set_mode(Caffe::GPU);
         Caffe::SetDevice(gpu_device_);
 
-        vector<char> imgArr(ipArrLength); //have been clear
-        std::cout << ">>>device id is : " << gpu_device_ << " & the length of image is : " << imgArr.size()
-                  << " classifer is : " << class_id << std::endl;
+        //下面这段opencv的代码是直接将图像处理的byte[]从内存里直接转为Mat，而不需要将图像储存在本地，节省两次io（储存一次，删除一次）
+        vector<char> imgArr(ipArrLength);
+        std::cout << "param check, device id is : " << gpu_device_ << " & the length of image is : " << imgArr.size() << std::endl;
         char *mpDst = &imgArr[0]; //已指向null
         memcpy(mpDst, ipArr, ipArrLength);
-        Mat img = imdecode(imgArr, -1);
+        Mat img = imdecode(imgArr, -1);//imdecode里的int flags跟imread()里的int flags意义一样，1代表3通道，0代表灰度图，-1代表图是什么通道的就load什么通道
         imgArr.clear();
         mpDst = NULL;
 
-        if (img.cols < 4 || img.rows < 4) {
-            std::cout << ">>>image load failed" << std::endl;
+        //检查下图像的尺寸，看看是否转化成功
+        if (img.cols == 0 || img.rows == 0) {
+            std::cout << "warn, load image failed!" << std::endl;
             return 0;
         }
 
-        std::vector <Prediction> predictions = Classify(img, labels_.size()); //分类 have been clear
+        std::vector <Prediction> predictions = Classify(img, labels_.size());
 
+        //以下是拼接从c++端到java端的输出
         string opResult = "";
-
         for (int i = 0; i < labels_.size(); i++) {
             opResult.append(predictions[i].first);
             opResult.append(":");
@@ -262,27 +204,17 @@ char *Classifier::targetCheck(char *ipArr, int ipArrLength) {
                 opResult.append(",");
             }
         }
-        std::cout << "c++ op: target opResult : " << opResult << std::endl;
+        std::cout << "result check, op result is: " << opResult << std::endl;
 
-//	        string mResultStr = "-1";
+        //注意下面这段代码，之所以采用的malloc的方式，是因为直接将char*或者string 输出的时候，会有小概率输出为空（大概10%~20%左右），所以只能这样输出
         char *ch = (char *) malloc(sizeof(char) * (opResult.length() + 1));
         strcpy(ch, opResult.c_str());
         return ch;
 
-
-//			string tag = hardFilter(predictions, "normal", 0.33);
-//			predictions.clear();
-//			for(int i = 0 ; i < labels_.size() ;i++){
-//				if (tag == labels_[i]){
-//					return i;
-//				}
-//			}
-//			return 0;
-
     } catch (Exception e) {
-        std::cout << ">>>c++ error" << std::endl;
+        std::cout << "error, c++ process error" << std::endl;
     }
-
+    //如果出现了error，就直接返回一个-1给到外面的java端好了
     string mResultStr = "-1";
     char *ch = (char *) malloc(sizeof(char) * (mResultStr.length() + 1));
     strcpy(ch, mResultStr.c_str());
@@ -290,36 +222,51 @@ char *Classifier::targetCheck(char *ipArr, int ipArrLength) {
 }
 
 
-/**
-* 对于预测再过滤，主要是为了处理某些normal 0.6，porn 0.3的情况，这种情况线上使用的时候应当一律归结为terror
-*/
-string Classifier::hardFilter(std::vector <Prediction> predictions,
-                              string normalTag, float ratio) {
-    if (predictions[0].first != normalTag) {
-        return predictions[0].first;
-    } else {
-        float normalPro = predictions[0].second;
-        float carePro = 1 - normalPro;
-        if (normalPro == 0) {
-            if (predictions.size() <= 1) {
-                return "care";
-            } else {
-                return predictions[1].first;
-            }
-        }
-        if (carePro / normalPro > ratio) {
-            if (predictions.size() <= 1) {
-                return "care";
-            } else {
-                return predictions[1].first;
-            }
-        } else {
-            return predictions[0].first;
-        }
+void Classifier::ShowLayerData(string layer_name, int po, int n){
+    if (n <= 0 ){ //如果n的数目小于等于0 则直接return
+        return ;
     }
+    //以下这一部分待测试，需要在caffe环境下测试可用性
+//    Blob<float> *show_layer;
+//    if (layer_name.compare("input_layer")){
+//        show_layer = net_->input_blobs()[0];
+//    }
+//    shared_ptr <Blob<float> > show_layer = net_->blob_by_name(layer_name);
+
+    float *show_data = show_layer->mutable_cpu_data();
+    show_data += po;
+    for(int i = 0 ; i < n ; i++){
+        std::cout << *show_data << " " ;
+        show_data ++ ;
+    }
+    std::cout << std::endl;
+
+//    int width = show_layer->width();
+//    int height = show_layer->height();
+//    for(int i = 0 ; i < width*height ; i++){
+//        if (i < n_shows || i > width*height - n_shows){
+//            std::cout << *show_data << " " ;
+//        }
+//        show_data ++ ;
+//    }
+//    std::cout << std::endl;
+//    for(int i = 0 ; i < width*height ; i++){
+//        if (i < n_shows || i > width*height - n_shows){
+//            std::cout << *show_data << " " ;
+//        }
+//        show_data ++ ;
+//    }
+//    std::cout << std::endl;
+//    for(int i = 0 ; i < width*height ; i++){
+//        if (i < n_shows || i > width*height - n_shows){
+//            std::cout << *show_data << " " ;
+//        }
+//        show_data ++ ;
+//    }
 }
 
-shared_ptr <Blob<float>> Classifier::GetLayerOutput(const cv::Mat &img, string fc) {
+
+shared_ptr <Blob<float> > Classifier::GetLayerOutput(const cv::Mat &img, string fc) {
     Caffe::set_mode(Caffe::GPU);
     Caffe::SetDevice(gpu_device_);
 
@@ -328,13 +275,13 @@ shared_ptr <Blob<float>> Classifier::GetLayerOutput(const cv::Mat &img, string f
     Preprocess(img, &input_channels);       //数据预处理
     net_->ForwardPrefilled();               //前向计算
 
-    shared_ptr <Blob<float>> outputBlob = net_->blob_by_name(fc);
+    shared_ptr <Blob<float> > outputBlob = net_->blob_by_name(fc);
     return outputBlob;
 }
 
 
-shared_ptr <Blob<float>> Classifier::GetBlobByName(string blob_name) {
-    shared_ptr <Blob<float>> outputBlob = net_->blob_by_name(blob_name);
+shared_ptr <Blob<float> > Classifier::GetBlobByName(string blob_name) {
+    shared_ptr <Blob<float> > outputBlob = net_->blob_by_name(blob_name);
     return outputBlob;
 }
 
@@ -370,26 +317,20 @@ string Classifier::CheckTarget(const cv::Mat &img) {
             opResult.append(",");
         }
     }
-    std::cout << "c++ op: target opResult : " << opResult << std::endl;
+    std::cout << "result check: target opResult : " << opResult << std::endl;
 
     return opResult;
 }
 
 
-
-/**
- * 比较器，比较两个pair里的数值哪个大，用来选取较大的那个pair数值
- * 使用的地点在Argmax中，是partial_sort中的比较器
-*/
 static bool PairCompare(const std::pair<float, int> &lhs,
                         const std::pair<float, int> &rhs) {
     return lhs.first > rhs.first;
 }
 
-/* Return the indices of the top N values of vector v. */
-/* 返回数组v[] 最大值的前 N 个序号数组 */
+
 static std::vector<int> Argmax(const std::vector<float> &v, int N) {
-    std::vector <std::pair<float, int>> pairs;
+    std::vector <std::pair<float, int> > pairs;
     for (size_t i = 0; i < v.size(); ++i)
         pairs.push_back(std::make_pair(v[i], i));
     std::partial_sort(pairs.begin(), pairs.begin() + N, pairs.end(),
