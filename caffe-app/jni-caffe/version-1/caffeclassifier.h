@@ -143,7 +143,7 @@ private:
      * @param po 从第po个开始输出
      * @param n 从po处开始向后数n个位置，都展示出来
      */
-    void ShowLayerData(string layer_name, int po, int n = 5);
+    void ShowLayerData(string layer_name, int po = 0, int n = 5);
 
 private:
     Net<float> *net_;                           //caffe分类网络对象

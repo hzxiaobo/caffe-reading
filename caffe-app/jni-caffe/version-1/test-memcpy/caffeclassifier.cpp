@@ -83,25 +83,36 @@ std::vector<float> Classifier::Predict(const cv::Mat &img) {
     int height = input_layer->height();
     float *input_data = input_layer->mutable_cpu_data();
     for(int i = 0 ; i < width*height ; i++){
-        if (i < 10 || i > width*height - 10){
+        if (i < 10 || i >= width*height - 10){
             std::cout << *input_data << " " ;
         }
         input_data ++ ;
     }
     std::cout << std::endl;
     for(int i = 0 ; i < width*height ; i++){
-        if (i < 10 || i > width*height - 10){
+        if (i < 10 || i >= width*height - 10){
             std::cout << *input_data << " " ;
         }
         input_data ++ ;
     }
     std::cout << std::endl;
     for(int i = 0 ; i < width*height ; i++){
-        if (i < 10 || i > width*height - 10){
+        if (i < 10 || i >= width*height - 10){
             std::cout << *input_data << " " ;
         }
         input_data ++ ;
     }
+    std::cout << std::endl;
+
+    std::cout << " gl input next showdata type " << std::endl;
+
+    ShowLayerData("input_layer", 0, 10);
+    ShowLayerData("input_layer", 224*224 - 10, 10);
+    ShowLayerData("input_layer", 224*224, 10);
+    ShowLayerData("input_layer", 224*224*2 - 10, 10);
+    ShowLayerData("input_layer", 224*224*2 , 10);
+    ShowLayerData("input_layer", 224*224*3 - 10, 10);
+
     std::cout << std::endl;
 
 
@@ -133,9 +144,6 @@ void Classifier::PushInputLayer(std::vector <cv::Mat> *input_channels) {
     int width = input_layer->width();
     int height = input_layer->height();
     float *input_data = input_layer->mutable_cpu_data();
-
-    std::cout << width << " & " << height << std::endl;
-    getchar();
 
     memcpy(input_data, ((*input_channels)[0].data), width*height*4);
     input_data += width*height;
@@ -373,4 +381,28 @@ static std::vector<int> Argmax(const std::vector<float> &v, int N) {
 
     pairs.clear();
     return result;
+}
+
+
+void Classifier::ShowLayerData(string layer_name, int po, int n){
+    if (n <= 0 ){ //如果n的数目小于等于0 则直接return
+        return ;
+    }
+    //以下这一部分待测试，需要在caffe环境下测试可用性
+    Blob<float> *show_layer;
+    if (layer_name.compare("input_layer") == 0){
+        show_layer = net_->input_blobs()[0];
+    }
+//    else {
+//        shared_ptr <Blob<float>> show_layer = net_->blob_by_name(layer_name);
+//    }
+
+    float *show_data = show_layer->mutable_cpu_data();
+    show_data += po;
+    for(int i = 0 ; i < n ; i++){
+        std::cout << *show_data << " " ;
+        show_data ++ ;
+    }
+    std::cout << std::endl;
+
 }

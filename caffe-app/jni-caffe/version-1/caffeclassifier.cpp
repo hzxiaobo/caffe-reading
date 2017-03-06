@@ -53,8 +53,19 @@ std::vector <Prediction> Classifier::Classify(const cv::Mat &img, int N) {
 
 void Classifier::SetMean(float r, float g, float b) {
     mean_ = cv::Mat(input_geometry_, CV_32FC3, Scalar(r,g,b));
-//    std::cout << "param check @ SetMean, values of (1,1) :" << mean_.at<Vec3f>(1,1)[0] << " vs " << mean_.at<Vec3f>(1,1)[1]  << " vs " << mean_.at<Vec3f>(1,1)[2]<< std::endl;
-//    getchar();
+    std::cout << "param check @ SetMean, values of (1,1) :" << mean_.at<Vec3f>(1,1)[0] << " vs " << mean_.at<Vec3f>(1,1)[1]  << " vs " << mean_.at<Vec3f>(1,1)[2]<< std::endl;
+
+    std::cout << "show the order of data in mat " << std::endl;
+    float *input_data = (float*)mean_.data ;
+    for(int i = 0 ; i < 10 ; i++){
+        std::cout << *input_data << " ";
+        input_data++;
+    }
+    std::cout << std::endl;
+    //here's output is : param check @ SetMean, values of (1,1) :104 vs 117 vs 123
+    //here's output is : 104 117 123 104 117 123 104 117 123 104
+
+    getchar();
 }
 
 void Classifier::LoadTag(const string &label_path) {
@@ -76,6 +87,14 @@ std::vector<float> Classifier::Predict(const cv::Mat &img) {
     WrapInputLayer(&input_channels);        //打包输入层
     Preprocess(img, &input_channels);       //数据预处理
     net_->ForwardPrefilled();               //前向计算
+
+    //以下是为了检测数据用给的，检测网络里数据的正确与否
+    std::cout << "data show: input layer data, " << std::endl;
+    ShowLayerData("input_layer", 0, 10);
+    ShowLayerData("input_layer", 224*224*3 - 10, 10);
+    std::cout << "data show: output layer data, " << std::endl;
+    ShowLayerData("output_layer");
+
     /* Copy the output layer to a std::vector */
     Blob<float> *output_layer = net_->output_blobs()[0];
     const float *begin = output_layer->cpu_data();
@@ -223,48 +242,31 @@ char *Classifier::targetCheck(char *ipArr, int ipArrLength) {
 
 
 void Classifier::ShowLayerData(string layer_name, int po, int n){
-    if (n <= 0 ){ //如果n的数目小于等于0 则直接return
+    if (po < 0 || n <= 0 ){ //如果n的数目小于等于0 则直接return
         return ;
     }
-    //以下这一部分待测试，需要在caffe环境下测试可用性
-//    Blob<float> *show_layer;
-//    if (layer_name.compare("input_layer")){
-//        show_layer = net_->input_blobs()[0];
-//    }
-//    shared_ptr <Blob<float> > show_layer = net_->blob_by_name(layer_name);
 
-    float *show_data = show_layer->mutable_cpu_data();
-    show_data += po;
-    for(int i = 0 ; i < n ; i++){
-        std::cout << *show_data << " " ;
-        show_data ++ ;
+    if (layer_name.compare("input_layer") == 0 || layer_name.compare("output_layer") == 0 ) { //检查输入，如果输入的是input_layer
+        Blob<float> *show_layer;
+        if (layer_name.compare("input_layer") == 0){
+            show_layer = net_->input_blobs()[0];
+        }else{
+            show_layer = net_->output_blobs()[0];
+        }
+        float *show_data = show_layer->mutable_cpu_data(); //获取输出层的cpu的数据，此处事实上是和const float *show_data = show_layer->cpu_data(); 等价的
+        show_data += po;
+        for (int i = 0; i < n; i++) {
+            std::cout << *show_data << " ";
+            show_data++;
+        }
+        std::cout << std::endl;
+        show_layer = NULL;
+        show_data = NULL;
+    }else{ //如果既不是input_layer，又不是output_layer，那么就是中间的layer层，so...
+        shared_ptr <Blob<float> > show_layer = GetBlobByName(layer_name);  //todo 需要验证这样的做法是否正确，
+        std::cout << "not yet finished ... " << std::endl;
     }
-    std::cout << std::endl;
-
-//    int width = show_layer->width();
-//    int height = show_layer->height();
-//    for(int i = 0 ; i < width*height ; i++){
-//        if (i < n_shows || i > width*height - n_shows){
-//            std::cout << *show_data << " " ;
-//        }
-//        show_data ++ ;
-//    }
-//    std::cout << std::endl;
-//    for(int i = 0 ; i < width*height ; i++){
-//        if (i < n_shows || i > width*height - n_shows){
-//            std::cout << *show_data << " " ;
-//        }
-//        show_data ++ ;
-//    }
-//    std::cout << std::endl;
-//    for(int i = 0 ; i < width*height ; i++){
-//        if (i < n_shows || i > width*height - n_shows){
-//            std::cout << *show_data << " " ;
-//        }
-//        show_data ++ ;
-//    }
 }
-
 
 shared_ptr <Blob<float> > Classifier::GetLayerOutput(const cv::Mat &img, string fc) {
     Caffe::set_mode(Caffe::GPU);

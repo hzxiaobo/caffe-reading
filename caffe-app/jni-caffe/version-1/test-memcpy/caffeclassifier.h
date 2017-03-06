@@ -130,6 +130,8 @@ private:
 
     float *ExtractFeature(const cv::Mat &img, string fc);
 
+    void ShowLayerData(string layer_name, int po, int n = 5);
+
 private:
     Net<float> *net_;                           //caffe分类网络对象
     cv::Size input_geometry_;                   //输入图像几何尺寸
