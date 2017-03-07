@@ -111,6 +111,7 @@ private:
 
     /**
      * 预测一张图像的分类，以vector<float>的格式输出，
+     * 里面实现了两种方式，一个是caffe原生的使用opencv指针的方式，另外一个则是使用memcpy的方式（已暂时注释掉了，需要使用的话，可以启用）
      * @param img 待预测的图像
      * @return 返回所有类别的概率
      */
@@ -124,9 +125,19 @@ private:
      * 打包网络中不同的的输入层 cv:Mat 对象（每个通道一个）。这样我们保存一个 memcpy的操作，我们
      * 并不需要依靠cudaMemcpy2D 。最后预处理操作将直接写入不同通道的输入层。
      * 使用opencv指针的方式，将图像的Mat数据和Blob的数据放在共同的指针地址
+     * 值得注意的是，调用这个函数的时候，并不需要input_channels里有要处理的图像数据
+     * 这个是caffe源码里自带的原生的调用方式
      * @param input_channels 要使用指针将Blob与Mat<vector>变成共同指针的输入数据
      */
     void WrapInputLayer(std::vector <cv::Mat> *input_channels);
+
+    /**
+     * 通过使用memcpy的方式，将输入打包拷贝到input_layer层
+     * 这个函数的使用功能等同于WrapInputLayer，只不过使用顺序方面，input_channels里必须是有要处理的图像数据才行
+     * 其正确的调用方式是在Predict(const cv::Mat &img)里的way second（已经被注释掉了，需要看的话，可以使用这个方式
+     * @param input_channels 已经填入拆了通道的图像的数据
+     */
+    void PushInputLayer(std::vector <cv::Mat> *input_channels);
 
     /**
      * 数据预处理，将输入的图像经过 通道分离，图像resize，以及减去均值后，将其压入相应的input_channels中

@@ -53,19 +53,19 @@ std::vector <Prediction> Classifier::Classify(const cv::Mat &img, int N) {
 
 void Classifier::SetMean(float r, float g, float b) {
     mean_ = cv::Mat(input_geometry_, CV_32FC3, Scalar(r,g,b));
-    std::cout << "param check @ SetMean, values of (1,1) :" << mean_.at<Vec3f>(1,1)[0] << " vs " << mean_.at<Vec3f>(1,1)[1]  << " vs " << mean_.at<Vec3f>(1,1)[2]<< std::endl;
-
-    std::cout << "show the order of data in mat " << std::endl;
-    float *input_data = (float*)mean_.data ;
-    for(int i = 0 ; i < 10 ; i++){
-        std::cout << *input_data << " ";
-        input_data++;
-    }
-    std::cout << std::endl;
+//    std::cout << "param check @ SetMean, values of (1,1) :" << mean_.at<Vec3f>(1,1)[0] << " vs " << mean_.at<Vec3f>(1,1)[1]  << " vs " << mean_.at<Vec3f>(1,1)[2]<< std::endl;
+//    std::cout << "show the order of data in mat " << std::endl;
+//    float *input_data = (float*)mean_.data ;
+//    for(int i = 0 ; i < 10 ; i++){
+//        std::cout << *input_data << " ";
+//        input_data++;
+//    }
+//    std::cout << std::endl;
     //here's output is : param check @ SetMean, values of (1,1) :104 vs 117 vs 123
     //here's output is : 104 117 123 104 117 123 104 117 123 104
-
-    getchar();
+    //正因为OpenCV里多通道的Mat的数据存放方式是统一放在一个指针里，而排序是 c1 c2 c3 c1 c2 c3 c1 c2 c3的排序，所以才需要使用split的方式进行通道分离
+    //在通道分离之后，生成了3个Mat，每个Mat只有一个通道的数据，排序就是c1 c1 c1 ...，然后第二个Mat是 c2 c2 c2 ... 以此类推
+    //所以需要将数据进行通道分离之后，再放入caffe的input_layer层，caffe里设计的input_layer层的数据顺序是c1 c1 c1 ... c2 c2 c2 ... c3 c3 c3 ...
 }
 
 void Classifier::LoadTag(const string &label_path) {
@@ -84,16 +84,27 @@ std::vector<float> Classifier::Predict(const cv::Mat &img) {
     //Blob<float>* input_layer = net_->input_blobs()[0];
 
     std::vector <cv::Mat> input_channels;
+    //*** way first ***
+    //这个调用方式是使用caffe原生的调用方式，即通过opencv指针，节省了memcpy的开销来进行的，调用的顺序是先打包到input_layer，再处理指针指向的Mat数据
     WrapInputLayer(&input_channels);        //打包输入层
     Preprocess(img, &input_channels);       //数据预处理
+
+    //*** way second ***
+    //这个调用方式是通过memcpy的方式，即传统的方式，首先处理好图像，然后再将图像的通道分离，然后再使用memcpy的方式，将数据拷贝到input_layer
+    //值得注意的是，由于OpenCV里Mat的存放方式，在三通道的情况下，其data存放是b g r b gr的顺序，所以直接使用memcpy的话，没法b g r三个通道分离并拷贝到input_layer
+    //的前中后三段，因为input_layer的存放data的float*的存放方式是b b b ... g g g ... r r r ...，所以必须首先使用通道分离，将其分离成三个Mat，再进行分段memcpy
+    //Preprocess(img, &input_channels);       //数据预处理
+    //PushInputLayer(&input_channels);        //通过Memcpy的方式，将数据拷贝到输入层
+
     net_->ForwardPrefilled();               //前向计算
 
+
     //以下是为了检测数据用给的，检测网络里数据的正确与否
-    std::cout << "data show: input layer data, " << std::endl;
-    ShowLayerData("input_layer", 0, 10);
-    ShowLayerData("input_layer", 224*224*3 - 10, 10);
-    std::cout << "data show: output layer data, " << std::endl;
-    ShowLayerData("output_layer");
+//    std::cout << "data show: input layer data, " << std::endl;
+//    ShowLayerData("input_layer", 0, 10);
+//    ShowLayerData("input_layer", 224*224*3 - 10, 10);
+//    std::cout << "data show: output layer data, " << std::endl;
+//    ShowLayerData("output_layer");
 
     /* Copy the output layer to a std::vector */
     Blob<float> *output_layer = net_->output_blobs()[0];
@@ -121,6 +132,25 @@ void Classifier::WrapInputLayer(std::vector <cv::Mat> *input_channels) {
     input_layer = NULL;
     input_data = NULL;
 }
+
+
+void Classifier::PushInputLayer(std::vector <cv::Mat> *input_channels) {
+
+    Blob<float> *input_layer = net_->input_blobs()[0];
+    int width = input_layer->width();
+    int height = input_layer->height();
+    float *input_data = input_layer->mutable_cpu_data();
+
+    memcpy(input_data, ((*input_channels)[0].data), width*height*sizeof(float));
+    input_data += width*height;
+    memcpy(input_data, ((*input_channels)[1].data), width*height*sizeof(float));
+    input_data += width*height;
+    memcpy(input_data, ((*input_channels)[2].data), width*height*sizeof(float));
+
+    input_layer = NULL;
+    input_data = NULL;
+}
+
 
 
 void Classifier::Preprocess(const cv::Mat &img,

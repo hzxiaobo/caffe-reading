@@ -14,7 +14,8 @@ caffe分类
 ### version-1
     1.修改调用方，使其load多个Classifier类，即初始化多个Net和Blob，然后在调用方控制多线程的数量；
     （当然这个是最低效的，GPU根本跑不满，然而却是实现成本最低的）
-    本方式是使用OpenCV指针的方式来实现的，也就是caffe里原生自带版本的修改版
+    本方式是使用OpenCV指针的方式来实现的，也就是caffe里原生自带版本的修改版，同时在Predict里也以注释的方式增加了使用memcpy的方式将数据拷贝到input_layer的方法
+    该方法是为了version-3的实现做准备
 
 ### version-2
     2.在方法1的基础上，修改图像传入方式，使用batch的方式向c++传入图像；
