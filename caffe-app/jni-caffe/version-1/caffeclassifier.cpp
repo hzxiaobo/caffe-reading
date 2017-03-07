@@ -101,10 +101,15 @@ std::vector<float> Classifier::Predict(const cv::Mat &img) {
 
     //以下是为了检测数据用给的，检测网络里数据的正确与否
 //    std::cout << "data show: input layer data, " << std::endl;
-//    ShowLayerData("input_layer", 0, 10);
-//    ShowLayerData("input_layer", 224*224*3 - 10, 10);
-//    std::cout << "data show: output layer data, " << std::endl;
-//    ShowLayerData("output_layer");
+    ShowLayerData("input_layer", 0, 10);
+    ShowLayerData("input_layer", 224*224*3-10, 10);
+    std::cout << "data show: output layer data, " << std::endl;
+    ShowLayerData("output_layer");
+    std::cout << "data show: show specific layer data, " << std::endl;
+   // ShowLayerData("loss3_ft/classifier",0,0);
+    ShowLayerData("loss3_ft/classifier",0,5);
+
+
 
     /* Copy the output layer to a std::vector */
     Blob<float> *output_layer = net_->output_blobs()[0];
@@ -222,8 +227,8 @@ char *Classifier::targetCheck(char *ipArr, int ipArrLength) {
             return 0;
         }
         //值得注意的是下面两句话，当初始化初始的是GPU的时候，下面这两句话并不起作用
-        Caffe::set_mode(Caffe::GPU);
-        Caffe::SetDevice(gpu_device_);
+        Caffe::set_mode(Caffe::CPU);
+        //Caffe::SetDevice(gpu_device_);
 
         //下面这段opencv的代码是直接将图像处理的byte[]从内存里直接转为Mat，而不需要将图像储存在本地，节省两次io（储存一次，删除一次）
         vector<char> imgArr(ipArrLength);
@@ -272,10 +277,9 @@ char *Classifier::targetCheck(char *ipArr, int ipArrLength) {
 
 
 void Classifier::ShowLayerData(string layer_name, int po, int n){
-    if (po < 0 || n <= 0 ){ //如果n的数目小于等于0 则直接return
+    if (po < 0 || n < 0 ){ //如果n的数目小于0 则直接return
         return ;
     }
-
     if (layer_name.compare("input_layer") == 0 || layer_name.compare("output_layer") == 0 ) { //检查输入，如果输入的是input_layer
         Blob<float> *show_layer;
         if (layer_name.compare("input_layer") == 0){
@@ -283,32 +287,77 @@ void Classifier::ShowLayerData(string layer_name, int po, int n){
         }else{
             show_layer = net_->output_blobs()[0];
         }
+        //这段修改po和n的是为了防止越界
+        int layer_data_count = show_layer->count();
+        if (po >= layer_data_count){
+            return;
+        }else if ((po + n) > layer_data_count || n == 0){ //如果n的数目等于0，则全部都打印出来
+            n = layer_data_count - po ;
+        }
+        //之所以是使用vector<float>的形式，是因为如果指直接使用指针的话，很容易造成越界什么的，所以使用vector<float>将相应的数值拷贝出来比较合适
         float *show_data = show_layer->mutable_cpu_data(); //获取输出层的cpu的数据，此处事实上是和const float *show_data = show_layer->cpu_data(); 等价的
         show_data += po;
-        for (int i = 0; i < n; i++) {
-            std::cout << *show_data << " ";
-            show_data++;
+        float *show_data_end = show_data + n;
+        vector<float> show_data_vec = std::vector<float>(show_data, show_data_end);
+        for(int i = 0 ; i < show_data_vec.size() ; i++){
+            std::cout << show_data_vec[i] << " ";
         }
         std::cout << std::endl;
         show_layer = NULL;
         show_data = NULL;
+        show_data_end = NULL;
+        show_data_vec.clear();
     }else{ //如果既不是input_layer，又不是output_layer，那么就是中间的layer层，so...
-        shared_ptr <Blob<float> > show_layer = GetBlobByName(layer_name);  //todo 需要验证这样的做法是否正确，
-        std::cout << "not yet finished ... " << std::endl;
+        shared_ptr <Blob<float> > show_layer = GetBlobByName(layer_name);
+        //这段修改po和n的是为了防止越界
+        int layer_data_count = show_layer->count();
+        if (po >= layer_data_count){
+            return;
+        }else if ((po + n) > layer_data_count || n == 0){ //如果n的数目等于0，则全部都打印出来
+            n = layer_data_count - po ;
+        }
+        //之所以是使用vector<float>的形式，是因为如果指直接使用指针的话，很容易造成越界什么的，所以使用vector<float>将相应的数值拷贝出来比较合适
+        float *show_data = show_layer->mutable_cpu_data(); //获取输出层的cpu的数据，此处事实上是和const float *show_data = show_layer->cpu_data(); 等价的
+        show_data += po;
+        float *show_data_end = show_data + n;
+        std::cout <<"po is :" << po << " & n is : " << n << std::endl;
+
+        vector<float> show_data_vec = std::vector<float>(show_data, show_data_end);
+        for(int i = 0 ; i < show_data_vec.size() ; i++){
+            std::cout << show_data_vec[i] << " ";
+        }
+        std::cout << std::endl;
+
+        float *layerOutput = new float[show_layer->count()];
+        std::cout << "show_layer->count(): " << show_layer->count() << std::endl;
+        memcpy(layerOutput, show_layer->mutable_cpu_data(), show_layer->count()*sizeof(float));
+        layerOutput += po;
+        for(int i = 0 ; i < n ; i++){
+            std::cout << *layerOutput << " " ;
+            layerOutput++;
+        }
+        std::cout << std::endl;
+
+
+        std::cout << std::endl;
+//        show_data = NULL;
+//        show_data_end = NULL;
+       // show_data_vec.clear();
     }
 }
 
 shared_ptr <Blob<float> > Classifier::GetLayerOutput(const cv::Mat &img, string fc) {
-    Caffe::set_mode(Caffe::GPU);
-    Caffe::SetDevice(gpu_device_);
+    Caffe::set_mode(Caffe::CPU);
+    //Caffe::SetDevice(gpu_device_);
 
     std::vector <cv::Mat> input_channels;
     WrapInputLayer(&input_channels);        //打包输入层
     Preprocess(img, &input_channels);       //数据预处理
     net_->ForwardPrefilled();               //前向计算
 
-    shared_ptr <Blob<float> > outputBlob = net_->blob_by_name(fc);
-    return outputBlob;
+//    shared_ptr <Blob<float> > outputBlob = net_->blob_by_name(fc);
+//    return outputBlob;
+    return GetBlobByName(fc);
 }
 
 
@@ -319,8 +368,9 @@ shared_ptr <Blob<float> > Classifier::GetBlobByName(string blob_name) {
 
 
 void Classifier::Forward(const cv::Mat &img) {
-    Caffe::set_mode(Caffe::GPU);
-    Caffe::SetDevice(gpu_device_);
+    Caffe::set_mode(Caffe::CPU);
+    //Caffe::SetDevice(gpu_device_);
+
     std::vector <cv::Mat> input_channels;
     WrapInputLayer(&input_channels);        //打包输入层
     Preprocess(img, &input_channels);       //数据预处理
@@ -329,8 +379,8 @@ void Classifier::Forward(const cv::Mat &img) {
 
 
 string Classifier::CheckTarget(const cv::Mat &img) {
-    Caffe::set_mode(Caffe::GPU);
-    Caffe::SetDevice(gpu_device_);
+    Caffe::set_mode(Caffe::CPU);
+    //Caffe::SetDevice(gpu_device_);
 
     std::vector <cv::Mat> input_channels;
     WrapInputLayer(&input_channels);

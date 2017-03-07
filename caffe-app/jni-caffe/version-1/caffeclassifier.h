@@ -63,7 +63,7 @@ public:
     std::vector <Prediction> Classify(const cv::Mat &img, int N = 1); //分类，默认返回前5个预测值[(标签，置信度),... ] 数组
 
     /**
-     * 输入一张图像的Mat，输出识别的结果，用数字来代替类别
+     * 输入一张图像的Mat，输出识别的结果，用数字来代替类别，通常是用在本地调用
      * @param img 输入的图像
      * @return 输出是否是待检测的目标（如果是2类分类的情况，通常情况下，1代表是目标，0代表不是目标
      */
@@ -78,10 +78,6 @@ public:
      */
     char *targetCheck(char *ipArr, int ipArrLength);
 
-    float *targetFeatureExtract(char *ipArr, int ipArrLength, string fc, int feature_length);
-
-    float *showFeatureExtract(const cv::Mat &img, string fc, int feature_length);
-
     shared_ptr <Blob<float> > GetLayerOutput(const cv::Mat &img, string fc);
 
     shared_ptr <Blob<float> > GetBlobByName(string blob_name);
@@ -89,8 +85,6 @@ public:
     void Forward(const cv::Mat &img);
 
     string CheckTarget(const cv::Mat &img);
-
-//    void setResizeSize(int size);
 
 private:
 
@@ -146,8 +140,6 @@ private:
      */
     void Preprocess(const cv::Mat &img, std::vector <cv::Mat> *input_channels);
 
-    float *ExtractFeature(const cv::Mat &img, string fc);
-
     /**
      * 输出指定层的数据，用来检查函数调用以及输出是否正确
      * @param layer_name 待查看数据的layer层的名字
@@ -157,12 +149,11 @@ private:
     void ShowLayerData(string layer_name, int po = 0, int n = 5);
 
 private:
-    Net<float> *net_;                           //caffe分类网络对象
-    cv::Size input_geometry_;                   //输入图像几何尺寸
-    int num_channels_;                          //网络通道数
-    cv::Mat mean_;                              //均值图像，
-    std::vector <string> labels_;                //目标标签数组
-//    int resizeSize;
+    Net<float> *net_;                               //caffe分类网络对象
+    cv::Size input_geometry_;                       //输入图像几何尺寸
+    int num_channels_;                              //网络通道数
+    cv::Mat mean_;                                  //均值图像，
+    std::vector <string> labels_;                   //目标标签数组
     int label_size_;                                //类别的数目，用在截断类别输出时使用，如果是使用别人的模型直接finetuning的时候，类别是原始的类别，所以需要截断
     int gpu_device_;                                //设备id
 };
