@@ -61,11 +61,11 @@ void Classifier::SetMean(float r, float g, float b) {
 //        input_data++;
 //    }
 //    std::cout << std::endl;
-    //here's output is : param check @ SetMean, values of (1,1) :104 vs 117 vs 123
-    //here's output is : 104 117 123 104 117 123 104 117 123 104
-    //正因为OpenCV里多通道的Mat的数据存放方式是统一放在一个指针里，而排序是 c1 c2 c3 c1 c2 c3 c1 c2 c3的排序，所以才需要使用split的方式进行通道分离
-    //在通道分离之后，生成了3个Mat，每个Mat只有一个通道的数据，排序就是c1 c1 c1 ...，然后第二个Mat是 c2 c2 c2 ... 以此类推
-    //所以需要将数据进行通道分离之后，再放入caffe的input_layer层，caffe里设计的input_layer层的数据顺序是c1 c1 c1 ... c2 c2 c2 ... c3 c3 c3 ...
+//    here's output is : param check @ SetMean, values of (1,1) :104 vs 117 vs 123
+//    here's output is : 104 117 123 104 117 123 104 117 123 104
+//    正因为OpenCV里多通道的Mat的数据存放方式是统一放在一个指针里，而排序是 c1 c2 c3 c1 c2 c3 c1 c2 c3的排序，所以才需要使用split的方式进行通道分离
+//    在通道分离之后，生成了3个Mat，每个Mat只有一个通道的数据，排序就是c1 c1 c1 ...，然后第二个Mat是 c2 c2 c2 ... 以此类推
+//    所以需要将数据进行通道分离之后，再放入caffe的input_layer层，caffe里设计的input_layer层的数据顺序是c1 c1 c1 ... c2 c2 c2 ... c3 c3 c3 ...
 }
 
 void Classifier::LoadTag(const string &label_path) {

@@ -16,18 +16,29 @@ using namespace caffe;
 // NOLINT(build/namespaces)
 using namespace cv;
 
-/* Pair (label, confidence) representing a prediction. */
-/* pair(标签，置信度)  预测值 */
+/**
+ * Pair (label, confidence) representing a prediction.
+ * pair(标签，置信度)  预测值
+ */
 typedef std::pair<string, float> Prediction;
 
-/* Return the indices of the top N values of vector v. */
-/* 返回数组v[] 最大值的前 N 个序号数组 */
+/**
+ * Return the indices of the top N values of vector v.
+ * 返回数组v[] 最大值的前 N 个序号数组
+ * @param v 输入的无序的数组v
+ * @param N 输出最大的前N个数字的排序
+ * @return 以从大到小的顺序返回输入序列中的前N个数在序列中的位置
+ */
 static std::vector<int> Argmax(const std::vector<float> &v, int N);
+
 
 /**
  * 比较器，比较两个pair里的数值哪个大，用来选取较大的那个pair数值
  * 使用的地点在Argmax中，是partial_sort中的比较器
-*/
+ * @param lhs 待比较的pair 1
+ * @param rhs 待比较的pair 2
+ * @return 如果lhs>rhs 输出true
+ */
 static bool PairCompare(const std::pair<float, int> &lhs, const std::pair<float, int> &rhs);
 
 
@@ -36,7 +47,7 @@ static bool PairCompare(const std::pair<float, int> &lhs, const std::pair<float,
     1.修改调用方，使其load多个Classifier类，即初始化多个Net和Blob，然后在调用方控制多线程的数量；
     （当然这个是最低效的，GPU根本跑不满，然而却是实现成本最低的）
  **/
-/*  分类接口类 Classifier */
+/*  基于caffe的分类接口类 Classifier */
 class Classifier {
 public:
 
@@ -78,12 +89,35 @@ public:
      */
     char *targetCheck(char *ipArr, int ipArrLength);
 
+    /**
+     * 输入一张图像，并获取指定层的输出，较为常用的情况是去softmax前的一层的分类结果层的输出
+     * 这一层的输出通常情况下是属于某一类的得分，可以让外层调用者通过参数来获得高召回，还是高精确度的结果
+     * @param img 输入的Mat图像
+     * @param fc 指定的输出层的名字
+     * @return 返回指定输出层的各个类别的结果
+     */
     shared_ptr <Blob<float> > GetLayerOutput(const cv::Mat &img, string fc);
 
+    /**
+     * 获取某一层的结果，与GetLayerOutput的结果不同，上面的函数的输入是Mat和指定层的名字
+     * 而本函数只是输出指定层的结果，他与下面的Forward函数合起来，才是上面的GetLayerOutput函数
+     * @param blob_name
+     * @return
+     */
     shared_ptr <Blob<float> > GetBlobByName(string blob_name);
 
+    /**
+     * 输入一张图像，并进行后向传递，本函数与GetBlobByName合起来才是GetLayerOutput这个函数
+     * @param img 输入的图像
+     */
     void Forward(const cv::Mat &img);
 
+    /**
+     * 输入一张图像的Mat，并返回分类的结果，会将所有类别以及类别的score输出，是softmax之后的结果×100之后
+     * 通过指定的排列顺序进行输出的
+     * @param img
+     * @return 返回类别+概率，需要调用端依据格式解析,其格式是：  类别1:score1,类别2:score2,...， 其中score*均为 100分制的
+     */
     string CheckTarget(const cv::Mat &img);
 
 private:
@@ -155,5 +189,5 @@ private:
     cv::Mat mean_;                                  //均值图像，
     std::vector <string> labels_;                   //目标标签数组
     int label_size_;                                //类别的数目，用在截断类别输出时使用，如果是使用别人的模型直接finetuning的时候，类别是原始的类别，所以需要截断
-    int gpu_device_;                                //设备id
+    int gpu_device_;                                //设备id，在多显卡的服务器上，用来指定某个显卡来进行计算
 };
