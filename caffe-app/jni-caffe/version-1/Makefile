@@ -9,7 +9,7 @@ CAFFE_INCLUDE = -I/home/xiaobo/work/caffe-master/include -I/usr/local/cuda-7.0/i
 CAFFE_LIBS = -L/home/xiaobo/work/caffe-master/build/lib -lcaffe
 GENERATE_DIR = ./
 GENERATE_LIBS = -L$(GENERATE_DIR) 
-OBJ	= caffeclassifier.o imgbaseprocess.o classjni.o fileprocess.o
+OBJ	= caffeclassifier.o imgbaseprocess.o caffe_jni.o fileprocess.o
 SSO	= libimg_classify_target.so
 BIN	= testcaffe
 
@@ -18,7 +18,7 @@ all: $(BIN) libimg_classify_target.so
 libimg_classify_target.so: $(OBJ)
 	$(CXX) $(CSHARED) -o $(GENERATE_DIR)/$@ $(OBJ) $(CAFFE_LIBS) $(OPENCV_LIBS)
 
-testcaffe:libimg_classify_target.so test_caffe_classify.cpp caffeclassifier.h classjni.h fileprocess.h
+testcaffe:libimg_classify_target.so test_caffe_classify.cpp caffeclassifier.h caffe_jni.h fileprocess.h
 	$(CXX) $(CFLAGS) $(CAFFE_INCLUDE) $(OPENCV_INCLUDE) test_caffe_classify.cpp -o $(BIN_DIR)/$@ $(CAFFE_LIBS) $(OPENCV_LIBS) $(GENERATE_LIBS) $(SSO)
 	
 caffeclassifier.o: caffeclassifier.cpp caffeclassifier.h
@@ -27,8 +27,8 @@ caffeclassifier.o: caffeclassifier.cpp caffeclassifier.h
 imgbaseprocess.o: imgBaseProcess.cpp imgBaseProcess.h
 	$(CXX) $(CFLAGS) $(CAFFE_INCLUDE) $(OPENCV_INCLUDE) -c imgBaseProcess.cpp -o $(BIN_DIR)/$@ $(CAFFE_LIBS) $(OPENCV_LIBS)
 
-classjni.o: classjni.cpp classjni.h
-	$(CXX) $(CFLAGS) $(CAFFE_INCLUDE) $(OPENCV_INCLUDE) -c classjni.cpp -o $(BIN_DIR)/$@ $(CAFFE_LIBS) $(OPENCV_LIBS)
+caffe_jni.o: caffe_jni.cpp caffe_jni.h
+	$(CXX) $(CFLAGS) $(CAFFE_INCLUDE) $(OPENCV_INCLUDE) -c caffe_jni.cpp -o $(BIN_DIR)/$@ $(CAFFE_LIBS) $(OPENCV_LIBS)
 
 fileprocess.o: fileprocess.cpp fileprocess.h
 	$(CXX) $(CFLAGS) $(CAFFE_INCLUDE) $(OPENCV_INCLUDE) -c fileprocess.cpp -o $(BIN_DIR)/$@ $(CAFFE_LIBS) $(OPENCV_LIBS)

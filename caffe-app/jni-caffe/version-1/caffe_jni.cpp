@@ -1,6 +1,6 @@
 #include <jni.h>
 #include <string>
-#include "classjni.h"
+#include "caffe_jni.h"
 #include "caffeclassifier.h"
 
 map<int, Classifier*> modelPool;
